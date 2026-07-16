@@ -4,25 +4,37 @@ const fs = require('fs');
 const path = require('path');
 const axios = require('axios');
 const qrcode = require('qrcode-terminal');
-const readline = require('readline');  // For user input
+const readline = require('readline');
 
 // ==================== LOAD CONFIG ====================
 const config = require('./config.js');
 
-// ==================== USER INPUT HELPER ====================
-const rl = readline.createInterface({
-    input: process.stdin,
-    output: process.stdout,
-});
+// ==================== GLOBAL VARIABLES ====================
+let loginChoice = null;  // Store login choice globally
+let isFirstRun = true;   // Track if it's first run
 
+// ==================== USER INPUT HELPER ====================
 function askQuestion(query) {
+    const rl = readline.createInterface({
+        input: process.stdin,
+        output: process.stdout,
+    });
+    
     return new Promise((resolve) => {
-        rl.question(query, resolve);
+        rl.question(query, (answer) => {
+            rl.close();
+            resolve(answer);
+        });
     });
 }
 
 // ==================== GET LOGIN METHOD FROM USER ====================
 async function getLoginMethod() {
+    // If already chosen, return stored choice
+    if (loginChoice) {
+        return loginChoice;
+    }
+
     console.log(`
 ╔═══════════════════════════════════╗
 ║     👑 ZARA MD BOT 👑            ║
@@ -37,14 +49,15 @@ Choose login method:
     `);
 
     const answer = await askQuestion('Enter your choice (1 or 2): ');
-    rl.close();
-
+    
     if (answer.trim() === '2') {
         const phone = await askQuestion('Enter your phone number (with country code, e.g., 91xxxxxxxxxx): ');
-        return { method: 'pair', phone: phone.trim() };
+        loginChoice = { method: 'pair', phone: phone.trim() };
+    } else {
+        loginChoice = { method: 'qr', phone: null };
     }
     
-    return { method: 'qr', phone: null };
+    return loginChoice;
 }
 
 // ==================== PAIRING CODE LOGIN ====================
@@ -73,52 +86,24 @@ async function pairWithPhone(sock, phoneNumber) {
 
 // ==================== CONNECT TO WHATSAPP ====================
 async function connectToWhatsApp() {
-    // Get login method from user
-    const loginChoice = await getLoginMethod();
+    // Get login method (only once)
+    const login = await getLoginMethod();
     
     const { state, saveCreds } = await useMultiFileAuthState('auth_info');
     
+    // Create socket WITHOUT printQRInTerminal (deprecated)
     const sock = makeWASocket({
-        printQRInTerminal: loginChoice.method === 'qr',
         auth: state,
         browser: [config.bot.name, 'Chrome', config.bot.version],
-        // For pairing
-        phone: loginChoice.method === 'pair' ? loginChoice.phone : undefined,
+        // Don't use printQRInTerminal - we'll handle QR manually
     });
 
-    // ============ HANDLE PAIRING CODE ============
-    if (loginChoice.method === 'pair') {
-        console.log('\n⏳ Requesting pairing code...');
-        // Wait for socket to be ready
-        setTimeout(async () => {
-            try {
-                const code = await sock.requestPairingCode(loginChoice.phone);
-                console.log(`
-╔═══════════════════════════════════╗
-║   📲 YOUR PAIRING CODE           ║
-║                                   ║
-║   👉 ${code} 👈                     ║
-║                                   ║
-║   Open WhatsApp > Link Device     ║
-║   > Link with Phone Number        ║
-║   > Enter this code               ║
-╚═══════════════════════════════════╝
-                `);
-            } catch (error) {
-                console.error('❌ Failed to get pairing code:', error.message);
-                console.log('🔄 Trying QR code method instead...');
-                // Fallback to QR
-                sock.printQRInTerminal = true;
-            }
-        }, 3000);
-    }
-
-    // ============ CONNECTION EVENTS ============
+    // ============ HANDLE QR CODE MANUALLY ============
     sock.ev.on('connection.update', async (update) => {
         const { connection, lastDisconnect, qr } = update;
 
-        // --- SHOW QR CODE ---
-        if (qr && loginChoice.method === 'qr') {
+        // --- SHOW QR CODE (Manual) ---
+        if (qr && login.method === 'qr') {
             console.log('\n========================================');
             console.log('👑 SCAN THIS QR CODE WITH WHATSAPP');
             console.log('========================================\n');
@@ -143,12 +128,40 @@ async function connectToWhatsApp() {
             const shouldReconnect = (lastDisconnect?.error instanceof Boom)?.output?.statusCode !== DisconnectReason.loggedOut;
             console.log('🔴 Connection closed. Reconnecting:', shouldReconnect);
             if (shouldReconnect) {
-                connectToWhatsApp();
+                // Reconnect without asking again
+                await connectToWhatsApp();
             } else {
                 console.log('❌ Logged out. Please restart the bot.');
+                process.exit(0);
             }
         }
     });
+
+    // ============ HANDLE PAIRING CODE ============
+    if (login.method === 'pair') {
+        console.log('\n⏳ Requesting pairing code...');
+        setTimeout(async () => {
+            try {
+                const code = await sock.requestPairingCode(login.phone);
+                console.log(`
+╔═══════════════════════════════════╗
+║   📲 YOUR PAIRING CODE           ║
+║                                   ║
+║   👉 ${code} 👈                     ║
+║                                   ║
+║   Open WhatsApp > Link Device     ║
+║   > Link with Phone Number        ║
+║   > Enter this code               ║
+╚═══════════════════════════════════╝
+                `);
+            } catch (error) {
+                console.error('❌ Failed to get pairing code:', error.message);
+                console.log('🔄 Trying QR code method instead...');
+                // Fallback to QR - update login method
+                login.method = 'qr';
+            }
+        }, 2000);
+    }
 
     sock.ev.on('creds.update', saveCreds);
 
@@ -159,8 +172,7 @@ async function connectToWhatsApp() {
 
         const from = msg.key.remoteJid;
         const text = msg.message.conversation || msg.message.extendedTextMessage?.text || '';
-        const sender = msg.key.participant || msg.key.remoteJid;
-
+        
         // --- PING COMMAND ---
         if (text.toLowerCase() === 'ping') {
             await sock.sendMessage(from, { 
@@ -231,7 +243,6 @@ async function sendWelcomeMessage(sock) {
                     key: sentMsg.key,
                 }
             });
-            // Small delay between reactions
             await new Promise(resolve => setTimeout(resolve, 500));
         }
 
@@ -239,7 +250,6 @@ async function sendWelcomeMessage(sock) {
         const beautifulText = config.messages.beautiful;
         const sentBeautiful = await sock.sendMessage(ownerJid, { text: beautifulText });
 
-        // Add reaction to beautiful message
         await sock.sendMessage(ownerJid, {
             react: {
                 text: '💖',
@@ -251,7 +261,6 @@ async function sendWelcomeMessage(sock) {
 
     } catch (error) {
         console.error('❌ Error sending welcome message:', error.message);
-        // Fallback
         try {
             const ownerJid = config.owner.number + '@s.whatsapp.net';
             await sock.sendMessage(ownerJid, {
@@ -277,12 +286,5 @@ console.log(`
 
 connectToWhatsApp().catch(err => {
     console.error('❌ Fatal error:', err);
+    process.exit(1);
 });
-
-// ==================== SAVE CONFIG TO FILE ====================
-// This allows you to update config from the bot itself
-function saveConfig(newConfig) {
-    const content = `module.exports = ${JSON.stringify(newConfig, null, 4)};`;
-    fs.writeFileSync('./config.js', content);
-    console.log('✅ Config saved!');
-}
