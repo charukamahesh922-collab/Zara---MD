@@ -1,0 +1,21 @@
+{
+  "name": "zara-md",
+  "version": "1.0.0",
+  "description": "👑 ZARA MD — The Queen of WhatsApp Bots",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "nodemon index.js"
+  },
+  "keywords": ["whatsapp-bot", "baileys", "zara-md"],
+  "author": "Zara Owner",
+  "license": "MIT",
+  "dependencies": {
+    "@whiskeysockets/baileys": "^6.7.9",
+    "@hapi/boom": "^10.0.1",
+    "axios": "^1.7.2",
+    "qrcode-terminal": "^0.12.0",
+    "fs": "^0.0.1-security",
+    "path": "^0.12.7"
+  }
+}
