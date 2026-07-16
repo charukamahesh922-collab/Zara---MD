@@ -4,233 +4,13 @@ const fs = require('fs');
 const path = require('path');
 const axios = require('axios');
 const qrcode = require('qrcode-terminal');
-<<<<<<< HEAD
-const readline = require('readline');
-=======
 const QRCode = require('qrcode');
->>>>>>> 50e0c99 (Initial commit: ZARA MD WhatsApp Bot)
 
+// ===== LOAD CONFIG =====
+const config = require('./config.js');
 const server = require('./server.js');
 
-<<<<<<< HEAD
-// ==================== GLOBAL VARIABLES ====================
-let loginChoice = null;  // Store login choice globally
-let isFirstRun = true;   // Track if it's first run
-
-// ==================== USER INPUT HELPER ====================
-function askQuestion(query) {
-    const rl = readline.createInterface({
-        input: process.stdin,
-        output: process.stdout,
-    });
-    
-    return new Promise((resolve) => {
-        rl.question(query, (answer) => {
-            rl.close();
-            resolve(answer);
-        });
-    });
-}
-
-// ==================== GET LOGIN METHOD FROM USER ====================
-async function getLoginMethod() {
-    // If already chosen, return stored choice
-    if (loginChoice) {
-        return loginChoice;
-    }
-
-    console.log(`
-╔═══════════════════════════════════╗
-║     👑 ZARA MD BOT 👑            ║
-║   The Queen of WhatsApp Bots      ║
-╚═══════════════════════════════════╝
-
-Choose login method:
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  [1] QR Code (Scan with WhatsApp)
-  [2] Phone Number (Get Pairing Code)
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    `);
-
-    const answer = await askQuestion('Enter your choice (1 or 2): ');
-    
-    if (answer.trim() === '2') {
-        const phone = await askQuestion('Enter your phone number (with country code, e.g., 91xxxxxxxxxx): ');
-        loginChoice = { method: 'pair', phone: phone.trim() };
-    } else {
-        loginChoice = { method: 'qr', phone: null };
-    }
-    
-    return loginChoice;
-}
-
-// ==================== PAIRING CODE LOGIN ====================
-async function pairWithPhone(sock, phoneNumber) {
-    console.log(`\n📱 Requesting pairing code for: ${phoneNumber}`);
-    
-    try {
-        const code = await sock.requestPairingCode(phoneNumber);
-        console.log(`
-╔═══════════════════════════════════╗
-║   📲 YOUR PAIRING CODE           ║
-║                                   ║
-║   👉 ${code} 👈                     ║
-║                                   ║
-║   Open WhatsApp > Link Device     ║
-║   > Link with Phone Number        ║
-║   > Enter this code               ║
-╚═══════════════════════════════════╝
-        `);
-        return true;
-    } catch (error) {
-        console.error('❌ Pairing failed:', error.message);
-        return false;
-    }
-}
-
-// ==================== CONNECT TO WHATSAPP ====================
-async function connectToWhatsApp() {
-    // Get login method (only once)
-    const login = await getLoginMethod();
-    
-    const { state, saveCreds } = await useMultiFileAuthState('auth_info');
-    
-    // Create socket WITHOUT printQRInTerminal (deprecated)
-    const sock = makeWASocket({
-        auth: state,
-        browser: [config.bot.name, 'Chrome', config.bot.version],
-        // Don't use printQRInTerminal - we'll handle QR manually
-    });
-
-    // ============ HANDLE QR CODE MANUALLY ============
-    sock.ev.on('connection.update', async (update) => {
-        const { connection, lastDisconnect, qr } = update;
-
-        // --- SHOW QR CODE (Manual) ---
-        if (qr && login.method === 'qr') {
-            console.log('\n========================================');
-            console.log('👑 SCAN THIS QR CODE WITH WHATSAPP');
-            console.log('========================================\n');
-            qrcode.generate(qr, { small: true });
-            console.log('\n📱 Open WhatsApp > Link Device > Scan QR\n');
-        }
-
-        // --- CONNECTION SUCCESS ---
-        if (connection === 'open') {
-            console.log('\n✅ ZARA MD IS ONLINE!');
-            console.log(`👑 Bot Name: ${config.bot.name}`);
-            console.log(`📱 Owner: ${config.owner.number}\n`);
-
-            // Send welcome message to owner
-            if (config.welcome.enabled) {
-                await sendWelcomeMessage(sock);
-            }
-        }
-
-        // --- DISCONNECT ---
-        if (connection === 'close') {
-            const shouldReconnect = (lastDisconnect?.error instanceof Boom)?.output?.statusCode !== DisconnectReason.loggedOut;
-            console.log('🔴 Connection closed. Reconnecting:', shouldReconnect);
-            if (shouldReconnect) {
-                // Reconnect without asking again
-                await connectToWhatsApp();
-            } else {
-                console.log('❌ Logged out. Please restart the bot.');
-                process.exit(0);
-            }
-        }
-    });
-
-    // ============ HANDLE PAIRING CODE ============
-    if (login.method === 'pair') {
-        console.log('\n⏳ Requesting pairing code...');
-        setTimeout(async () => {
-            try {
-                const code = await sock.requestPairingCode(login.phone);
-                console.log(`
-╔═══════════════════════════════════╗
-║   📲 YOUR PAIRING CODE           ║
-║                                   ║
-║   👉 ${code} 👈                     ║
-║                                   ║
-║   Open WhatsApp > Link Device     ║
-║   > Link with Phone Number        ║
-║   > Enter this code               ║
-╚═══════════════════════════════════╝
-                `);
-            } catch (error) {
-                console.error('❌ Failed to get pairing code:', error.message);
-                console.log('🔄 Trying QR code method instead...');
-                // Fallback to QR - update login method
-                login.method = 'qr';
-            }
-        }, 2000);
-    }
-
-    sock.ev.on('creds.update', saveCreds);
-
-    // ============ MESSAGE HANDLER ============
-    sock.ev.on('messages.upsert', async (m) => {
-        const msg = m.messages[0];
-        if (!msg.message || msg.key.fromMe) return;
-
-        const from = msg.key.remoteJid;
-        const text = msg.message.conversation || msg.message.extendedTextMessage?.text || '';
-        
-        // --- PING COMMAND ---
-        if (text.toLowerCase() === 'ping') {
-            await sock.sendMessage(from, { 
-                text: `🏓 Pong! ${config.bot.name} is alive!\n⏱️ ${Date.now() - msg.messageTimestamp * 1000}ms` 
-            });
-        }
-
-        // --- HELP COMMAND ---
-        if (text.toLowerCase() === `${config.bot.prefix}help`) {
-            const helpText = `╔═══════════════════════════╗
-║   👑 ${config.bot.name} 👑    ║
-=======
-const config = {
-    owner: { number: '94784745155', name: 'Zara Owner' },
-    bot: { name: 'ZARA MD', version: '1.0.0', prefix: '.' },
-    welcome: {
-        enabled: true,
-        logoUrl: 'https://raw.githubusercontent.com/charukamahesh922-collab/Zara---MD/refs/heads/main/Img/zaramd.jpg',
-        reactions: ['👑', '💖', '✨'],
-    },
-    messages: {
-        welcome: `╔═══════════════════════════╗
-║     👑 ZARA MD 👑        ║
-║   The Queen of Bots       ║
->>>>>>> 50e0c99 (Initial commit: ZARA MD WhatsApp Bot)
-╚═══════════════════════════╝
-
-╭─────────────────────────╮
-│  ✅ Bot Successfully     │
-│     Connected!           │
-│                          │
-│  🤖 Name: {botName}      │
-│  📱 Status: Online 🟢    │
-│  ⚡ Version: {version}   │
-│  👑 Owner: {ownerNumber} │
-╰─────────────────────────╯
-
-✨ *"Royalty meets code."* ✨
-━━━━━━━━━━━━━━━━━━━━━━━━━
-💫 ZARA MD — Rule Your Chats!`,
-        beautiful: `🌟━━━━━━━━━━━━━━━━━━━━━━━🌟
-┏━━━━━━━━━━━━━━━━━━━━━━━┓
-┃   🎀 WELCOME HOME 🎀   ┃
-┃                        ┃
-┃   👑 ZARA MD IS LIVE  ┃
-┃   🔥 Ready to Serve   ┃
-┃   💫 24/7 Active      ┃
-┗━━━━━━━━━━━━━━━━━━━━━━━┛
-🌟━━━━━━━━━━━━━━━━━━━━━━━🌟
-
-💖 *Made with ❤️ for you*`,
-    }
-};
-
+// ===== GLOBAL VARIABLES =====
 let sock = null;
 let isConnected = false;
 let reconnectTimer = null;
@@ -238,6 +18,21 @@ let reconnectAttempts = 0;
 let isShuttingDown = false;
 let pairingInProgress = false;
 
+// ===== REACTION MAP =====
+async function addReactionToMessage(jid, key, emoji) {
+    try {
+        if (key && emoji && sock) {
+            await sock.sendMessage(jid, {
+                react: { text: emoji, key: key }
+            });
+            console.log(`✅ Reaction added: ${emoji}`);
+        }
+    } catch (error) {
+        console.log(`⚠️ Failed to add reaction: ${error.message}`);
+    }
+}
+
+// ===== WEB FUNCTIONS =====
 function updateWebQR(qr) {
     if (qr) {
         QRCode.toDataURL(qr, (err, url) => {
@@ -256,9 +51,11 @@ function updateWebStatus(status, connected) {
     server.updateStatus(status, connected);
 }
 
+// ===== SEND WELCOME MESSAGE =====
 async function sendWelcomeMessage(sock) {
     try {
         const ownerJid = config.owner.number + '@s.whatsapp.net';
+        
         let logoBuffer = null;
         try {
             const response = await axios.get(config.welcome.logoUrl, { 
@@ -267,54 +64,59 @@ async function sendWelcomeMessage(sock) {
             });
             logoBuffer = Buffer.from(response.data);
         } catch (error) {
-            console.log('⚠️ Logo download failed');
+            console.log('⚠️ Logo download failed, sending text only');
         }
 
-        const welcomeText = config.messages.welcome
+        let welcomeText = config.messages.welcome
             .replace(/{botName}/g, config.bot.name)
             .replace(/{version}/g, config.bot.version)
             .replace(/{ownerNumber}/g, config.owner.number);
 
         let sentMsg;
+        
         if (logoBuffer) {
-            sentMsg = await sock.sendMessage(ownerJid, { 
-                image: logoBuffer, 
-                caption: welcomeText, 
-                mimetype: 'image/jpeg' 
-            });
+            try {
+                sentMsg = await sock.sendMessage(ownerJid, { 
+                    image: logoBuffer, 
+                    caption: welcomeText, 
+                    mimetype: 'image/jpeg',
+                    thumbnail: logoBuffer
+                });
+                console.log('📨 Welcome message sent with image!');
+            } catch (imageError) {
+                console.log('⚠️ Image send failed, sending text only');
+                sentMsg = await sock.sendMessage(ownerJid, { text: welcomeText });
+                console.log('📨 Welcome message sent as text!');
+            }
         } else {
             sentMsg = await sock.sendMessage(ownerJid, { text: welcomeText });
+            console.log('📨 Welcome message sent as text!');
         }
 
-        for (const emoji of config.welcome.reactions) {
-            await sock.sendMessage(ownerJid, { 
-                react: { text: emoji, key: sentMsg.key } 
-            });
-            await new Promise(resolve => setTimeout(resolve, 500));
-        }
-
-<<<<<<< HEAD
-        // --- SEND BEAUTIFUL MESSAGE ---
-        const beautifulText = config.messages.beautiful;
-        const sentBeautiful = await sock.sendMessage(ownerJid, { text: beautifulText });
-
-        await sock.sendMessage(ownerJid, {
-            react: {
-                text: '💖',
-                key: sentBeautiful.key,
+        if (sentMsg && sentMsg.key) {
+            for (const emoji of config.welcome.reactions) {
+                try {
+                    await sock.sendMessage(ownerJid, { 
+                        react: { text: emoji, key: sentMsg.key } 
+                    });
+                    await new Promise(resolve => setTimeout(resolve, 500));
+                } catch (reactError) {}
             }
-=======
-        const sentBeautiful = await sock.sendMessage(ownerJid, { 
-            text: config.messages.beautiful 
-        });
-        await sock.sendMessage(ownerJid, { 
-            react: { text: '💖', key: sentBeautiful.key } 
->>>>>>> 50e0c99 (Initial commit: ZARA MD WhatsApp Bot)
-        });
+        }
 
         console.log('📨 Welcome message sent to owner!');
+
     } catch (error) {
         console.error('❌ Welcome error:', error.message);
+        try {
+            const ownerJid = config.owner.number + '@s.whatsapp.net';
+            await sock.sendMessage(ownerJid, { 
+                text: `👑 ${config.bot.name} is ONLINE!\n\nBot connected successfully!\nTime: ${new Date().toLocaleString()}`
+            });
+            console.log('📨 Fallback message sent');
+        } catch (e) {
+            console.error('❌ All message attempts failed:', e.message);
+        }
     }
 }
 
@@ -329,12 +131,11 @@ async function generatePairingCode(phone) {
     console.log(`\n📱 Generating pairing code for: ${phone}`);
     
     try {
-        // Create a temporary socket just for pairing
         const { state, saveCreds } = await useMultiFileAuthState('auth_info');
         
         const tempSock = makeWASocket({
             auth: state,
-            browser: ['ZARA MD', 'Chrome', '1.0.0'],
+            browser: [config.bot.name, 'Chrome', config.bot.version],
             markOnlineOnConnect: false,
             connectTimeoutMs: 30000,
             defaultQueryTimeoutMs: 30000,
@@ -344,21 +145,17 @@ async function generatePairingCode(phone) {
             shouldSyncHistoryMessage: () => false,
         });
 
-        // Wait for the socket to be ready
         await new Promise(resolve => setTimeout(resolve, 3000));
         
-        // Request pairing code
         const code = await tempSock.requestPairingCode(phone);
         
         if (code && code.length >= 8) {
             console.log(`✅ Pairing code generated: ${code}`);
             updateWebPairing(code);
             
-            // Store the socket for later use
             sock = tempSock;
             server.setSocket(sock);
             
-            // Set up connection events for the main socket
             tempSock.ev.on('connection.update', async (update) => {
                 const { connection, lastDisconnect, qr } = update;
                 
@@ -371,7 +168,7 @@ async function generatePairingCode(phone) {
                 if (connection === 'open') {
                     isConnected = true;
                     updateWebStatus('online', true);
-                    console.log('\n✅ ZARA MD IS ONLINE!');
+                    console.log(`\n✅ ${config.bot.name} IS ONLINE!`);
                     
                     if (config.welcome.enabled) {
                         await sendWelcomeMessage(tempSock);
@@ -420,6 +217,14 @@ async function generatePairingCode(phone) {
     }
 }
 
+// ===== CHECK IF USER IS OWNER =====
+function isOwner(jid) {
+    if (!jid) return false;
+    const cleanJid = jid.split('@')[0];
+    const ownerNumber = config.owner.number;
+    return cleanJid === ownerNumber;
+}
+
 // ===== CONNECT TO WHATSAPP =====
 async function connectToWhatsApp() {
     if (sock || isShuttingDown) return;
@@ -432,7 +237,7 @@ async function connectToWhatsApp() {
         
         sock = makeWASocket({
             auth: state,
-            browser: ['ZARA MD', 'Chrome', '1.0.0'],
+            browser: [config.bot.name, 'Chrome', config.bot.version],
             markOnlineOnConnect: false,
             connectTimeoutMs: 60000,
             defaultQueryTimeoutMs: 60000,
@@ -453,7 +258,7 @@ async function connectToWhatsApp() {
                 console.log('\n📱 QR Code generated!');
                 updateWebQR(qr);
                 console.log('\n========================================');
-                console.log('👑 SCAN QR CODE AT: http://localhost:3000');
+                console.log(`👑 SCAN QR CODE AT: http://localhost:3000`);
                 console.log('========================================\n');
                 qrcode.generate(qr, { small: true });
                 reconnectAttempts = 0;
@@ -464,7 +269,7 @@ async function connectToWhatsApp() {
                 reconnectAttempts = 0;
                 updateWebStatus('online', true);
                 
-                console.log('\n✅ ZARA MD IS ONLINE!');
+                console.log(`\n✅ ${config.bot.name} IS ONLINE!`);
                 console.log(`👑 Bot Name: ${config.bot.name}`);
                 console.log(`📱 Owner: ${config.owner.number}`);
                 console.log(`🌐 Web: http://localhost:3000\n`);
@@ -502,7 +307,7 @@ async function connectToWhatsApp() {
 
         sock.ev.on('creds.update', saveCreds);
 
-        // ===== MESSAGE HANDLER =====
+        // ===== MESSAGE HANDLER (FIXED) =====
         sock.ev.on('messages.upsert', async (m) => {
             if (!isConnected || !sock) return;
             
@@ -512,27 +317,53 @@ async function connectToWhatsApp() {
                 const from = msg.key.remoteJid;
                 const text = msg.message.conversation || msg.message.extendedTextMessage?.text || '';
                 const lowerText = text.trim().toLowerCase();
+                const messageKey = msg.key;
                 
-                if (lowerText === 'ping') {
+                // Debug log
+                console.log(`📩 Received: "${text}" from: ${from}`);
+                
+                // ===== CHECK IF OWNER =====
+                if (!isOwner(from)) {
+                    console.log(`⛔ Unauthorized: ${from}`);
+                    continue;
+                }
+                
+                console.log(`✅ Authorized owner: ${from}`);
+                
+                // ===== PING COMMAND =====
+                if (lowerText === 'ping' || lowerText === '.ping') {
+                    console.log('🏓 Pong command received!');
+                    await addReactionToMessage(from, messageKey, '🏓');
                     await sock.sendMessage(from, { 
-                        text: `🏓 Pong! ${config.bot.name} is alive!` 
+                        text: `🏓 Pong! ${config.bot.name} is alive!\n⏱️ ${Date.now() - msg.messageTimestamp * 1000}ms` 
                     });
                 }
 
-                if (lowerText === `${config.bot.prefix}help` || lowerText === '/help' || lowerText === '#help') {
+                // ===== HELP COMMAND =====
+                if (lowerText === 'help' || lowerText === '.help' || lowerText === '/help' || lowerText === 'menu' || lowerText === '.menu' || lowerText === '/menu') {
+                    console.log('📋 Help command received!');
+                    await addReactionToMessage(from, messageKey, '📋');
                     await sock.sendMessage(from, { 
                         text: `👑 ${config.bot.name}
 ━━━━━━━━━━━━━━━━━━━━━━━━━
-📌 Commands:
-ping - Check status
-${config.bot.prefix}help - This menu
-${config.bot.prefix}info - Bot info
-
+📌 Available Commands:
+━━━━━━━━━━━━━━━━━━━━━━━━━
+ping / .ping   - Check bot status
+help / .help   - Show this menu
+info / .info   - Show bot info
+menu / .menu   - Show this menu
+━━━━━━━━━━━━━━━━━━━━━━━━━
+📱 Status: Online 🟢
+⚡ Version: ${config.bot.version}
+━━━━━━━━━━━━━━━━━━━━━━━━━
 ✨ Rule Your Chats!` 
                     });
                 }
 
-                if (lowerText === `${config.bot.prefix}info` || lowerText === '/info' || lowerText === '#info') {
+                // ===== INFO COMMAND =====
+                if (lowerText === 'info' || lowerText === '.info' || lowerText === '/info') {
+                    console.log('ℹ️ Info command received!');
+                    await addReactionToMessage(from, messageKey, 'ℹ️');
                     await sock.sendMessage(from, { 
                         text: `👑 ${config.bot.name}
 ━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -540,6 +371,7 @@ ${config.bot.prefix}info - Bot info
 📱 Status: Online 🟢
 ⚡ Version: ${config.bot.version}
 👑 Owner: ${config.owner.number}
+📡 Web: http://localhost:3000
 ━━━━━━━━━━━━━━━━━━━━━━━━━
 💫 Rule Your Chats!` 
                     });
@@ -548,16 +380,6 @@ ${config.bot.prefix}info - Bot info
         });
 
     } catch (error) {
-<<<<<<< HEAD
-        console.error('❌ Error sending welcome message:', error.message);
-        try {
-            const ownerJid = config.owner.number + '@s.whatsapp.net';
-            await sock.sendMessage(ownerJid, {
-                text: `👑 ${config.bot.name} ONLINE!\n\nBot connected successfully!\nOwner: ${config.owner.number}\nTime: ${new Date().toLocaleString()}`
-            });
-        } catch (e) {
-            console.error('❌ Failed to send fallback message:', e.message);
-=======
         console.error('❌ Connection error:', error.message);
         sock = null;
         server.setSocket(null);
@@ -565,7 +387,6 @@ ${config.bot.prefix}info - Bot info
         if (!isShuttingDown) {
             await new Promise(resolve => setTimeout(resolve, 10000));
             await connectToWhatsApp();
->>>>>>> 50e0c99 (Initial commit: ZARA MD WhatsApp Bot)
         }
     }
 }
@@ -573,7 +394,7 @@ ${config.bot.prefix}info - Bot info
 // ===== START =====
 console.log(`
 ╔═══════════════════════════════════╗
-║     👑 ZARA MD BOT 👑            ║
+║     👑 ${config.bot.name} BOT 👑            ║
 ║   The Queen of WhatsApp Bots      ║
 ║                                   ║
 ║   🌐 Web: http://localhost:3000   ║
@@ -581,12 +402,6 @@ console.log(`
 ╚═══════════════════════════════════╝
 `);
 
-<<<<<<< HEAD
-connectToWhatsApp().catch(err => {
-    console.error('❌ Fatal error:', err);
-    process.exit(1);
-});
-=======
 // Check for pending pairing on startup
 setTimeout(async () => {
     const phone = server.getPendingPhone();
@@ -600,8 +415,6 @@ setTimeout(async () => {
 connectToWhatsApp();
 
 // ===== API ENDPOINT FOR PAIRING =====
-// Override the server's pairing endpoint
-const originalRequestPairing = server.app.post;
 server.app.post('/api/request-pairing', async (req, res) => {
     const { phone } = req.body;
     if (!phone || phone.length < 10) {
@@ -612,8 +425,6 @@ server.app.post('/api/request-pairing', async (req, res) => {
     }
     
     console.log(`📱 Pairing requested for: ${phone}`);
-    
-    // Generate pairing code immediately
     const code = await generatePairingCode(phone);
     
     if (code) {
@@ -633,4 +444,3 @@ process.on('SIGINT', () => {
     if (reconnectTimer) clearTimeout(reconnectTimer);
     process.exit(0);
 });
->>>>>>> 50e0c99 (Initial commit: ZARA MD WhatsApp Bot)
