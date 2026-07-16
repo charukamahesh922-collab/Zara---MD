@@ -1,14 +1,18 @@
-const { default: makeWASocket, useMultiFileAuthState, DisconnectReason, makeInMemoryStore } = require('@whiskeysockets/baileys');
+const { default: makeWASocket, useMultiFileAuthState, DisconnectReason } = require('@whiskeysockets/baileys');
 const { Boom } = require('@hapi/boom');
 const fs = require('fs');
 const path = require('path');
 const axios = require('axios');
 const qrcode = require('qrcode-terminal');
+<<<<<<< HEAD
 const readline = require('readline');
+=======
+const QRCode = require('qrcode');
+>>>>>>> 50e0c99 (Initial commit: ZARA MD WhatsApp Bot)
 
-// ==================== LOAD CONFIG ====================
-const config = require('./config.js');
+const server = require('./server.js');
 
+<<<<<<< HEAD
 // ==================== GLOBAL VARIABLES ====================
 let loginChoice = null;  // Store login choice globally
 let isFirstRun = true;   // Track if it's first run
@@ -184,68 +188,112 @@ async function connectToWhatsApp() {
         if (text.toLowerCase() === `${config.bot.prefix}help`) {
             const helpText = `╔═══════════════════════════╗
 ║   👑 ${config.bot.name} 👑    ║
+=======
+const config = {
+    owner: { number: '94784745155', name: 'Zara Owner' },
+    bot: { name: 'ZARA MD', version: '1.0.0', prefix: '.' },
+    welcome: {
+        enabled: true,
+        logoUrl: 'https://raw.githubusercontent.com/charukamahesh922-collab/Zara---MD/refs/heads/main/Img/zaramd.jpg',
+        reactions: ['👑', '💖', '✨'],
+    },
+    messages: {
+        welcome: `╔═══════════════════════════╗
+║     👑 ZARA MD 👑        ║
+║   The Queen of Bots       ║
+>>>>>>> 50e0c99 (Initial commit: ZARA MD WhatsApp Bot)
 ╚═══════════════════════════╝
 
-📌 *Available Commands:*
+╭─────────────────────────╮
+│  ✅ Bot Successfully     │
+│     Connected!           │
+│                          │
+│  🤖 Name: {botName}      │
+│  📱 Status: Online 🟢    │
+│  ⚡ Version: {version}   │
+│  👑 Owner: {ownerNumber} │
+╰─────────────────────────╯
+
+✨ *"Royalty meets code."* ✨
 ━━━━━━━━━━━━━━━━━━━━━━━━━
-${config.bot.prefix}help  - Show this menu
-ping          - Check bot status
-sticker       - Make sticker (reply to image)
-${config.bot.prefix}info  - Bot information
+💫 ZARA MD — Rule Your Chats!`,
+        beautiful: `🌟━━━━━━━━━━━━━━━━━━━━━━━🌟
+┏━━━━━━━━━━━━━━━━━━━━━━━┓
+┃   🎀 WELCOME HOME 🎀   ┃
+┃                        ┃
+┃   👑 ZARA MD IS LIVE  ┃
+┃   🔥 Ready to Serve   ┃
+┃   💫 24/7 Active      ┃
+┗━━━━━━━━━━━━━━━━━━━━━━━┛
+🌟━━━━━━━━━━━━━━━━━━━━━━━🌟
 
-━━━━━━━━━━━━━━━━━━━━━━━━━
-✨ ${config.bot.name} — Rule Your Chats!`;
+💖 *Made with ❤️ for you*`,
+    }
+};
 
-            await sock.sendMessage(from, { text: helpText });
-        }
-    });
+let sock = null;
+let isConnected = false;
+let reconnectTimer = null;
+let reconnectAttempts = 0;
+let isShuttingDown = false;
+let pairingInProgress = false;
 
-    return sock;
+function updateWebQR(qr) {
+    if (qr) {
+        QRCode.toDataURL(qr, (err, url) => {
+            if (!err) server.updateQR(url);
+        });
+    }
 }
 
-// ==================== WELCOME MESSAGE ====================
+function updateWebPairing(code) {
+    if (code && code.length >= 8) {
+        server.updatePairingCode(code);
+    }
+}
+
+function updateWebStatus(status, connected) {
+    server.updateStatus(status, connected);
+}
+
 async function sendWelcomeMessage(sock) {
     try {
         const ownerJid = config.owner.number + '@s.whatsapp.net';
-
-        // --- DOWNLOAD LOGO ---
         let logoBuffer = null;
         try {
-            const response = await axios.get(config.welcome.logoUrl, { responseType: 'arraybuffer' });
+            const response = await axios.get(config.welcome.logoUrl, { 
+                responseType: 'arraybuffer', 
+                timeout: 10000 
+            });
             logoBuffer = Buffer.from(response.data);
         } catch (error) {
-            console.log('⚠️ Logo download failed, sending text only');
+            console.log('⚠️ Logo download failed');
         }
 
-        // --- PREPARE WELCOME TEXT ---
         const welcomeText = config.messages.welcome
             .replace(/{botName}/g, config.bot.name)
             .replace(/{version}/g, config.bot.version)
             .replace(/{ownerNumber}/g, config.owner.number);
 
-        // --- SEND IMAGE WITH CAPTION ---
         let sentMsg;
         if (logoBuffer) {
-            sentMsg = await sock.sendMessage(ownerJid, {
-                image: logoBuffer,
-                caption: welcomeText,
-                mimetype: 'image/jpeg',
+            sentMsg = await sock.sendMessage(ownerJid, { 
+                image: logoBuffer, 
+                caption: welcomeText, 
+                mimetype: 'image/jpeg' 
             });
         } else {
             sentMsg = await sock.sendMessage(ownerJid, { text: welcomeText });
         }
 
-        // --- ADD REACTIONS ---
         for (const emoji of config.welcome.reactions) {
-            await sock.sendMessage(ownerJid, {
-                react: {
-                    text: emoji,
-                    key: sentMsg.key,
-                }
+            await sock.sendMessage(ownerJid, { 
+                react: { text: emoji, key: sentMsg.key } 
             });
             await new Promise(resolve => setTimeout(resolve, 500));
         }
 
+<<<<<<< HEAD
         // --- SEND BEAUTIFUL MESSAGE ---
         const beautifulText = config.messages.beautiful;
         const sentBeautiful = await sock.sendMessage(ownerJid, { text: beautifulText });
@@ -255,11 +303,252 @@ async function sendWelcomeMessage(sock) {
                 text: '💖',
                 key: sentBeautiful.key,
             }
+=======
+        const sentBeautiful = await sock.sendMessage(ownerJid, { 
+            text: config.messages.beautiful 
+        });
+        await sock.sendMessage(ownerJid, { 
+            react: { text: '💖', key: sentBeautiful.key } 
+>>>>>>> 50e0c99 (Initial commit: ZARA MD WhatsApp Bot)
         });
 
         console.log('📨 Welcome message sent to owner!');
+    } catch (error) {
+        console.error('❌ Welcome error:', error.message);
+    }
+}
+
+// ===== GENERATE PAIRING CODE =====
+async function generatePairingCode(phone) {
+    if (pairingInProgress) {
+        console.log('⏳ Pairing already in progress...');
+        return null;
+    }
+    
+    pairingInProgress = true;
+    console.log(`\n📱 Generating pairing code for: ${phone}`);
+    
+    try {
+        // Create a temporary socket just for pairing
+        const { state, saveCreds } = await useMultiFileAuthState('auth_info');
+        
+        const tempSock = makeWASocket({
+            auth: state,
+            browser: ['ZARA MD', 'Chrome', '1.0.0'],
+            markOnlineOnConnect: false,
+            connectTimeoutMs: 30000,
+            defaultQueryTimeoutMs: 30000,
+            keepAliveIntervalMs: 30000,
+            version: [2, 2403, 2],
+            generateHighQualityLinkPreview: false,
+            shouldSyncHistoryMessage: () => false,
+        });
+
+        // Wait for the socket to be ready
+        await new Promise(resolve => setTimeout(resolve, 3000));
+        
+        // Request pairing code
+        const code = await tempSock.requestPairingCode(phone);
+        
+        if (code && code.length >= 8) {
+            console.log(`✅ Pairing code generated: ${code}`);
+            updateWebPairing(code);
+            
+            // Store the socket for later use
+            sock = tempSock;
+            server.setSocket(sock);
+            
+            // Set up connection events for the main socket
+            tempSock.ev.on('connection.update', async (update) => {
+                const { connection, lastDisconnect, qr } = update;
+                
+                if (qr) {
+                    console.log('\n📱 QR Code generated!');
+                    updateWebQR(qr);
+                    qrcode.generate(qr, { small: true });
+                }
+                
+                if (connection === 'open') {
+                    isConnected = true;
+                    updateWebStatus('online', true);
+                    console.log('\n✅ ZARA MD IS ONLINE!');
+                    
+                    if (config.welcome.enabled) {
+                        await sendWelcomeMessage(tempSock);
+                    }
+                }
+                
+                if (connection === 'close') {
+                    isConnected = false;
+                    const statusCode = lastDisconnect?.error?.output?.statusCode;
+                    if (statusCode !== DisconnectReason.loggedOut && !isShuttingDown) {
+                        console.log('🔄 Reconnecting...');
+                        setTimeout(async () => {
+                            await connectToWhatsApp();
+                        }, 5000);
+                    }
+                }
+            });
+            
+            tempSock.ev.on('creds.update', saveCreds);
+            
+            console.log(`
+╔═══════════════════════════════════╗
+║   📲 PAIRING CODE                ║
+║                                   ║
+║   👉 ${code} 👈                     ║
+║                                   ║
+║   Open WhatsApp > Link Device     ║
+║   > Link with Phone Number        ║
+║   > Enter this code               ║
+║                                   ║
+║   ⚠️ Code expires in 5 minutes!   ║
+╚═══════════════════════════════════╝
+            `);
+            
+            pairingInProgress = false;
+            return code;
+        } else {
+            console.log('❌ Invalid pairing code received');
+            pairingInProgress = false;
+            return null;
+        }
+    } catch (error) {
+        console.error('❌ Pairing failed:', error.message);
+        pairingInProgress = false;
+        return null;
+    }
+}
+
+// ===== CONNECT TO WHATSAPP =====
+async function connectToWhatsApp() {
+    if (sock || isShuttingDown) return;
+
+    try {
+        const { state, saveCreds } = await useMultiFileAuthState('auth_info');
+        updateWebStatus('connecting', false);
+        
+        console.log('🔄 Connecting to WhatsApp...');
+        
+        sock = makeWASocket({
+            auth: state,
+            browser: ['ZARA MD', 'Chrome', '1.0.0'],
+            markOnlineOnConnect: false,
+            connectTimeoutMs: 60000,
+            defaultQueryTimeoutMs: 60000,
+            keepAliveIntervalMs: 60000,
+            version: [2, 2403, 2],
+            maxRetries: 5,
+            retryDelayMs: 5000,
+            generateHighQualityLinkPreview: false,
+            shouldSyncHistoryMessage: () => false,
+        });
+
+        server.setSocket(sock);
+
+        sock.ev.on('connection.update', async (update) => {
+            const { connection, lastDisconnect, qr } = update;
+
+            if (qr) {
+                console.log('\n📱 QR Code generated!');
+                updateWebQR(qr);
+                console.log('\n========================================');
+                console.log('👑 SCAN QR CODE AT: http://localhost:3000');
+                console.log('========================================\n');
+                qrcode.generate(qr, { small: true });
+                reconnectAttempts = 0;
+            }
+
+            if (connection === 'open') {
+                isConnected = true;
+                reconnectAttempts = 0;
+                updateWebStatus('online', true);
+                
+                console.log('\n✅ ZARA MD IS ONLINE!');
+                console.log(`👑 Bot Name: ${config.bot.name}`);
+                console.log(`📱 Owner: ${config.owner.number}`);
+                console.log(`🌐 Web: http://localhost:3000\n`);
+
+                if (config.welcome.enabled) {
+                    await sendWelcomeMessage(sock);
+                }
+            }
+
+            if (connection === 'close') {
+                isConnected = false;
+                sock = null;
+                server.setSocket(null);
+                updateWebStatus('disconnected', false);
+                
+                const statusCode = lastDisconnect?.error?.output?.statusCode;
+                const shouldReconnect = statusCode !== DisconnectReason.loggedOut;
+                
+                console.log('🔴 Connection closed.');
+                
+                if (shouldReconnect && !isShuttingDown) {
+                    const delay = Math.min(30000, 5000 * (reconnectAttempts + 1));
+                    reconnectAttempts++;
+                    console.log(`⏳ Reconnecting in ${delay/1000}s...`);
+                    reconnectTimer = setTimeout(async () => {
+                        reconnectTimer = null;
+                        await connectToWhatsApp();
+                    }, delay);
+                } else {
+                    console.log('❌ Logged out. Please restart the bot.');
+                    updateWebStatus('disconnected', false);
+                }
+            }
+        });
+
+        sock.ev.on('creds.update', saveCreds);
+
+        // ===== MESSAGE HANDLER =====
+        sock.ev.on('messages.upsert', async (m) => {
+            if (!isConnected || !sock) return;
+            
+            for (const msg of m.messages) {
+                if (!msg.message || msg.key.fromMe) continue;
+
+                const from = msg.key.remoteJid;
+                const text = msg.message.conversation || msg.message.extendedTextMessage?.text || '';
+                const lowerText = text.trim().toLowerCase();
+                
+                if (lowerText === 'ping') {
+                    await sock.sendMessage(from, { 
+                        text: `🏓 Pong! ${config.bot.name} is alive!` 
+                    });
+                }
+
+                if (lowerText === `${config.bot.prefix}help` || lowerText === '/help' || lowerText === '#help') {
+                    await sock.sendMessage(from, { 
+                        text: `👑 ${config.bot.name}
+━━━━━━━━━━━━━━━━━━━━━━━━━
+📌 Commands:
+ping - Check status
+${config.bot.prefix}help - This menu
+${config.bot.prefix}info - Bot info
+
+✨ Rule Your Chats!` 
+                    });
+                }
+
+                if (lowerText === `${config.bot.prefix}info` || lowerText === '/info' || lowerText === '#info') {
+                    await sock.sendMessage(from, { 
+                        text: `👑 ${config.bot.name}
+━━━━━━━━━━━━━━━━━━━━━━━━━
+🤖 Name: ${config.bot.name}
+📱 Status: Online 🟢
+⚡ Version: ${config.bot.version}
+👑 Owner: ${config.owner.number}
+━━━━━━━━━━━━━━━━━━━━━━━━━
+💫 Rule Your Chats!` 
+                    });
+                }
+            }
+        });
 
     } catch (error) {
+<<<<<<< HEAD
         console.error('❌ Error sending welcome message:', error.message);
         try {
             const ownerJid = config.owner.number + '@s.whatsapp.net';
@@ -268,23 +557,80 @@ async function sendWelcomeMessage(sock) {
             });
         } catch (e) {
             console.error('❌ Failed to send fallback message:', e.message);
+=======
+        console.error('❌ Connection error:', error.message);
+        sock = null;
+        server.setSocket(null);
+        updateWebStatus('disconnected', false);
+        if (!isShuttingDown) {
+            await new Promise(resolve => setTimeout(resolve, 10000));
+            await connectToWhatsApp();
+>>>>>>> 50e0c99 (Initial commit: ZARA MD WhatsApp Bot)
         }
     }
 }
 
-// ==================== START BOT ====================
+// ===== START =====
 console.log(`
 ╔═══════════════════════════════════╗
-║                                   ║
 ║     👑 ZARA MD BOT 👑            ║
 ║   The Queen of WhatsApp Bots      ║
 ║                                   ║
-║   Starting up... Please wait      ║
-║                                   ║
+║   🌐 Web: http://localhost:3000   ║
+║   📱 Bot starting...              ║
 ╚═══════════════════════════════════╝
 `);
 
+<<<<<<< HEAD
 connectToWhatsApp().catch(err => {
     console.error('❌ Fatal error:', err);
     process.exit(1);
 });
+=======
+// Check for pending pairing on startup
+setTimeout(async () => {
+    const phone = server.getPendingPhone();
+    if (phone) {
+        console.log(`📱 Found pending pairing request for: ${phone}`);
+        await generatePairingCode(phone);
+    }
+}, 3000);
+
+// Also start normal connection
+connectToWhatsApp();
+
+// ===== API ENDPOINT FOR PAIRING =====
+// Override the server's pairing endpoint
+const originalRequestPairing = server.app.post;
+server.app.post('/api/request-pairing', async (req, res) => {
+    const { phone } = req.body;
+    if (!phone || phone.length < 10) {
+        return res.json({ 
+            success: false, 
+            error: 'Valid phone number required (min 10 digits)' 
+        });
+    }
+    
+    console.log(`📱 Pairing requested for: ${phone}`);
+    
+    // Generate pairing code immediately
+    const code = await generatePairingCode(phone);
+    
+    if (code) {
+        return res.json({ success: true, code: code });
+    } else {
+        return res.json({ 
+            success: false, 
+            error: 'Failed to generate pairing code. Please try again.',
+            pending: true 
+        });
+    }
+});
+
+process.on('SIGINT', () => {
+    isShuttingDown = true;
+    console.log('\n🛑 Bot stopped by user');
+    if (reconnectTimer) clearTimeout(reconnectTimer);
+    process.exit(0);
+});
+>>>>>>> 50e0c99 (Initial commit: ZARA MD WhatsApp Bot)
