@@ -1,0 +1,13 @@
+# 1. Stop the current push (Ctrl+C)
+
+# 2. Remove node_modules from entire git history
+git filter-branch --force --index-filter \
+  "git rm --cached --ignore-unmatch -r node_modules" \
+  --prune-empty --tag-name-filter cat -- --all
+
+# 3. Clean up
+git reflog expire --expire=now --all
+git gc --prune=now --aggressive
+
+# 4. Push the cleaned repo
+git push origin main --for  
