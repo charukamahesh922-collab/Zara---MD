@@ -6,7 +6,7 @@ module.exports = {
 
     // ============ OWNER SETTINGS ============
     owner: {
-        number: '91xxxxxxxxxx',      // Your WhatsApp number (without +)
+        number: '91xxxxxxxxxx',      // REPLACE WITH YOUR NUMBER (without +)
         name: 'Zara Owner',
     },
 
@@ -15,19 +15,13 @@ module.exports = {
         name: 'ZARA MD',
         version: '1.0.0',
         prefix: '.',                  // Command prefix (e.g., .help)
-        mode: 'public',               // 'public' or 'private'
+        mode: 'public',
     },
 
     // ============ LOGIN METHOD ============
-    // Choose ONE: 'qr' OR 'pair'
+    // This is now asked at runtime, but you can set a default here
     login: {
-        method: 'qr',                 // 'qr' or 'pair'
-        
-        // For Pair Code method (only needed if method is 'pair')
-        pair: {
-            phoneNumber: '91xxxxxxxxxx',  // Your phone number with country code
-            // Pair code will be auto-generated
-        }
+        defaultMethod: 'qr',          // 'qr' or 'pair' (fallback if user doesn't choose)
     },
 
     // ============ WELCOME MESSAGE ============
@@ -35,28 +29,6 @@ module.exports = {
         enabled: true,
         logoUrl: 'https://raw.githubusercontent.com/charukamahesh922-collab/Zara---MD/refs/heads/main/Img/zaramd.jpg',
         reactions: ['👑', '💖', '✨'],
-    },
-
-    // ============ DATABASE ============
-    database: {
-        type: 'json',                 // 'json' or 'mongodb'
-        path: './database.json',
-    },
-
-    // ============ API KEYS ============
-    apis: {
-        openai: '',                   // Your OpenAI API key (optional)
-        weather: '',                  // Weather API key (optional)
-    },
-
-    // ============ FEATURES ============
-    features: {
-        autoReply: true,
-        stickerMaker: true,
-        groupManagement: true,
-        aiChat: false,                // Set true if you have OpenAI key
-        antiSpam: true,
-        antiLink: false,
     },
 
     // ============ MESSAGES ============
