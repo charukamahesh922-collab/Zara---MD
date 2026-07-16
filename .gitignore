@@ -6,3 +6,7 @@ auth_info/
 .vscode/
 .idea/
 *.tmp
+node_modules/
+auth_info/
+package-lock.json
+*.log
