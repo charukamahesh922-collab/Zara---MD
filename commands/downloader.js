@@ -9,24 +9,32 @@ const {
 const axios = require('axios');
 const fs = require('fs');
 const path = require('path');
-const youtubedl = require('youtube-dl-exec');
+const ytdl = require('ytdl-core'); // Use ytdl-core instead of youtube-dl-exec
 
 const downloadDir = path.join(__dirname, '..', 'downloads');
 
 // ===== HELPERS =====
 async function getVideoDetails(url) {
     try {
-        const info = await youtubedl(url, {
-            dumpSingleJson: true, noWarnings: true, noCheckCertificates: true,
-            addHeader: ['referer:youtube.com', 'user-agent:googlebot']
-        });
+        if (!ytdl.validateURL(url)) return null;
+        
+        const info = await ytdl.getInfo(url);
+        const videoDetails = info.videoDetails;
+        
         return {
-            title: info.title, duration: formatDuration(info.duration),
-            views: formatNumber(info.view_count), likes: formatNumber(info.like_count),
-            channel: info.channel || info.uploader, uploadDate: formatDate(info.upload_date),
-            thumbnail: info.thumbnail, url: info.webpage_url
+            title: videoDetails.title,
+            duration: formatDuration(videoDetails.lengthSeconds),
+            views: formatNumber(videoDetails.viewCount),
+            likes: formatNumber(videoDetails.likes),
+            channel: videoDetails.author?.name || videoDetails.ownerChannelName,
+            uploadDate: videoDetails.publishDate ? formatDate(videoDetails.publishDate) : 'Unknown',
+            thumbnail: videoDetails.thumbnails?.[videoDetails.thumbnails.length - 1]?.url,
+            url: videoDetails.video_url
         };
-    } catch (e) { return null; }
+    } catch (e) {
+        console.error('getVideoDetails error:', e.message);
+        return null;
+    }
 }
 
 function formatDuration(s) {
@@ -46,7 +54,8 @@ function formatNumber(n) {
 
 function formatDate(d) {
     if (!d) return 'Unknown';
-    return `${d.substring(6,8)}/${d.substring(4,6)}/${d.substring(0,4)}`;
+    const date = new Date(d);
+    return `${date.getDate().toString().padStart(2, '0')}/${(date.getMonth() + 1).toString().padStart(2, '0')}/${date.getFullYear()}`;
 }
 
 const completeBox = `╔═══════════════════════╗
@@ -73,7 +82,12 @@ async function genericDownload(sock, msg, url, platform, downloadFn, startTime) 
             try { if (downloadMsg) await sock.sendMessage(remoteJid, { delete: downloadMsg.key }); } catch (e) {}
             
             const caption = `${completeBox}\n\n📹 *Title* : ${data.title || 'Video'}\n⚡ *Platform* : ${platform}\n🕐 *Time* : ${getUptime(startTime)}\n\n${footer}`;
-            await sock.sendMessage(remoteJid, { video: data.buffer, caption, mimetype: 'video/mp4' });
+            
+            if (data.type === 'image' || platform === 'Pinterest') {
+                await sock.sendMessage(remoteJid, { image: data.buffer, caption });
+            } else {
+                await sock.sendMessage(remoteJid, { video: data.buffer, caption, mimetype: 'video/mp4' });
+            }
             await react(sock, remoteJid, msgKey, '✅');
         } else {
             await sock.sendMessage(remoteJid, { text: `❌ *Download Failed!*\n\n😔 Unable to download from ${platform}\n\n${footer}` });
@@ -96,15 +110,17 @@ async function handleYTMP4(sock, msg, query, startTime) {
     
     try {
         await react(sock, remoteJid, msgKey, '🔍');
-        let url = query, videoInfo = null;
+        let url = query;
         
         if (!query.includes('youtube.com') && !query.includes('youtu.be')) {
             searchMsg = await sock.sendMessage(remoteJid, { text: `🔍 *Searching YouTube...*\n\n📌 Query : ${query}\n⏳ Please wait...${footer}` });
             const results = await searchYouTube(query);
-            if (results?.length > 0) { url = results[0].url; videoInfo = results[0]; }
-            else {
+            if (results?.length > 0) { 
+                url = results[0].url; 
+            } else {
                 await sock.sendMessage(remoteJid, { text: `❌ *No results!*\n\n🔍 Query : ${query}\n💡 Try a direct URL\n\n${footer}` });
-                await react(sock, remoteJid, msgKey, '❌'); return;
+                await react(sock, remoteJid, msgKey, '❌'); 
+                return;
             }
         }
         
@@ -140,15 +156,17 @@ async function handleYTMP3(sock, msg, query, startTime) {
     
     try {
         await react(sock, remoteJid, msgKey, '🔍');
-        let url = query, songInfo = null;
+        let url = query;
         
         if (!query.includes('youtube.com') && !query.includes('youtu.be')) {
             searchMsg = await sock.sendMessage(remoteJid, { text: `🔍 *Searching YouTube Music...*\n\n📌 Query : ${query}\n⏳ Please wait...${footer}` });
             const results = await searchYouTube(query);
-            if (results?.length > 0) { url = results[0].url; songInfo = results[0]; }
-            else {
+            if (results?.length > 0) { 
+                url = results[0].url; 
+            } else {
                 await sock.sendMessage(remoteJid, { text: `❌ *No results!*\n\n🔍 Query : ${query}\n💡 Try a direct URL\n\n${footer}` });
-                await react(sock, remoteJid, msgKey, '❌'); return;
+                await react(sock, remoteJid, msgKey, '❌'); 
+                return;
             }
         }
         
@@ -230,7 +248,7 @@ async function handleTwitter(sock, msg, url, startTime) {
     await genericDownload(sock, msg, url, 'Twitter/X', downloadTwitter, startTime);
 }
 
-// ===== PINTEREST (FIXED) =====
+// ===== PINTEREST =====
 async function handlePinterest(sock, msg, url, startTime) {
     const remoteJid = msg.key.remoteJid;
     const msgKey = msg.key;
@@ -289,7 +307,7 @@ async function handleSnapchat(sock, msg, url, startTime) {
     await genericDownload(sock, msg, url, 'Snapchat', downloadSnapchat, startTime);
 }
 
-// ===== WALLPAPER (FIXED) =====
+// ===== WALLPAPER =====
 async function handleWallpaper(sock, msg, query, startTime) {
     const remoteJid = msg.key.remoteJid;
     const msgKey = msg.key;
@@ -315,7 +333,7 @@ async function handleWallpaper(sock, msg, query, startTime) {
     }
 }
 
-// ===== APK (FIXED) =====
+// ===== APK =====
 async function handleAPK(sock, msg, query, startTime) {
     const remoteJid = msg.key.remoteJid;
     const msgKey = msg.key;
