@@ -423,10 +423,10 @@ async function connectToWhatsApp() {
 // ===== STARTUP =====
 async function startBot() {
     console.log(`\n╔═══════════════════════════════════╗`);
-    console.log(`║     👑 ${config.bot.name} BOT 👑            ║`);
+    console.log(`║   👑 ${config.bot.name} BOT 👑            ║`);
     console.log(`║   The Queen of WhatsApp Bots      ║`);
     console.log(`║   🌐 Port: ${config.port}                  ║`);
-    console.log(`║   console.log(`║   💾 Storage: Railway Volume (Persistent)           ║`);
+    console.log(`║   💾 Storage: Railway Volume (Persistent)           ║`);
     console.log(`║   📱 Bot starting...              ║`);
     console.log(`╚═══════════════════════════════════╝\n`);
     
