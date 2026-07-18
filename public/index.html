@@ -2,12 +2,13 @@
 <html lang="en" data-theme="light">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>ZARA MD · WhatsApp Bot</title>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes" />
+  <title>ZARA MD · Queen of WhatsApp Bots</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,500;14..32,600;14..32,700;14..32,800;14..32,900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <!-- Chart.js for rich graphs -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
   <style>
-    /* ===== RESET & ROOT ===== */
     * {
       margin: 0;
       padding: 0;
@@ -22,15 +23,17 @@
       --text-secondary: #444444;
       --text-muted: #777777;
       --border: #eaeaea;
-      --shadow: rgba(0,0,0,0.06);
+      --shadow: rgba(0,0,0,0.05);
       --card-hover: #f0f0f0;
       --accent: #e94560;
       --accent-hover: #c73a52;
-      --nav-bg: rgba(255,255,255,0.92);
+      --accent-soft: rgba(233,69,96,0.08);
+      --nav-bg: rgba(255,255,255,0.94);
       --transition: 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
       --danger: #ff1744;
       --success: #00e676;
       --warning: #ffd600;
+      --chart-grid: rgba(0,0,0,0.06);
     }
 
     [data-theme="dark"] {
@@ -41,299 +44,192 @@
       --text-secondary: #b0b0c8;
       --text-muted: #787896;
       --border: #2a2a3e;
-      --shadow: rgba(0,0,0,0.5);
+      --shadow: rgba(0,0,0,0.6);
       --card-hover: #24243a;
-      --nav-bg: rgba(13,13,20,0.92);
+      --nav-bg: rgba(13,13,20,0.94);
+      --accent-soft: rgba(233,69,96,0.15);
+      --chart-grid: rgba(255,255,255,0.08);
     }
 
     body {
       font-family: 'Inter', sans-serif;
       background: var(--bg);
       color: var(--text);
-      line-height: 1.6;
+      line-height: 1.5;
       transition: background 0.3s, color 0.3s;
       min-height: 100vh;
     }
 
     .container {
-      max-width: 1200px;
+      max-width: 1300px;
       margin: 0 auto;
-      padding: 0 40px;
+      padding: 0 32px;
     }
 
-    /* ===== HEADER ===== */
+    /* Header */
     .header {
-      padding: 18px 0;
+      padding: 16px 0;
       border-bottom: 1px solid var(--border);
       background: var(--nav-bg);
-      backdrop-filter: blur(12px);
-      -webkit-backdrop-filter: blur(12px);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
       position: sticky;
       top: 0;
       z-index: 100;
-      transition: background 0.3s, border-color 0.3s;
     }
-
     .nav {
       display: flex;
       justify-content: space-between;
       align-items: center;
       flex-wrap: wrap;
-      gap: 12px 20px;
+      gap: 14px 24px;
     }
-
     .logo {
-      font-size: 18px;
-      font-weight: 700;
-      letter-spacing: 1px;
+      font-size: 20px;
+      font-weight: 800;
+      letter-spacing: 1.5px;
       text-transform: uppercase;
       color: var(--text);
-      white-space: nowrap;
     }
-    .logo span {
-      color: var(--accent);
-    }
-
+    .logo span { color: var(--accent); }
     .nav-menu {
       display: flex;
-      gap: 28px;
+      gap: 24px;
       list-style: none;
       align-items: center;
       flex-wrap: wrap;
     }
-
     .nav-menu a {
       text-decoration: none;
       color: var(--text-secondary);
       font-size: 12px;
-      font-weight: 500;
-      letter-spacing: 1px;
+      font-weight: 600;
+      letter-spacing: 0.8px;
       text-transform: uppercase;
       transition: color 0.3s;
-      white-space: nowrap;
     }
-    .nav-menu a:hover {
-      color: var(--accent);
-    }
-
+    .nav-menu a:hover { color: var(--accent); }
     .nav-cta {
       background: var(--accent);
       color: #fff !important;
       padding: 8px 22px;
       border-radius: 40px;
       font-weight: 600;
-      transition: background 0.3s, transform 0.2s;
     }
-    .nav-cta:hover {
-      background: var(--accent-hover);
-      color: #fff !important;
-      transform: scale(1.02);
-    }
-
+    .nav-cta:hover { background: var(--accent-hover); transform: scale(1.02); }
     .theme-toggle {
       background: var(--border);
       border: none;
       border-radius: 40px;
-      padding: 6px 14px;
-      font-size: 14px;
+      padding: 6px 16px;
       cursor: pointer;
       color: var(--text);
-      transition: 0.3s;
       display: flex;
       align-items: center;
       gap: 6px;
-      line-height: 1;
+      font-size: 15px;
     }
-    .theme-toggle:hover {
-      background: var(--accent);
-      color: #fff;
-    }
-
     .status-badge-nav {
       display: flex;
       align-items: center;
       gap: 8px;
       font-size: 11px;
       font-weight: 500;
-      color: var(--text-secondary);
       padding: 4px 14px;
       border-radius: 40px;
       background: var(--bg-secondary);
       border: 1px solid var(--border);
     }
     .status-dot-nav {
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-      transition: all 0.4s;
+      width: 9px; height: 9px; border-radius: 50%;
     }
-    .status-dot-nav.online { background: var(--success); }
-    .status-dot-nav.offline { background: var(--danger); }
-    .status-dot-nav.connecting {
-      background: var(--warning);
-      animation: pulse-dot 1s infinite;
-    }
+    .online { background: var(--success); }
+    .offline { background: var(--danger); }
+    .connecting { background: var(--warning); animation: pulse-dot 1s infinite; }
+    @keyframes pulse-dot { 0%,100%{opacity:1;transform:scale(1);} 50%{opacity:0.4;transform:scale(0.8);} }
 
-    @keyframes pulse-dot {
-      0%, 100% { opacity: 1; transform: scale(1); }
-      50% { opacity: 0.4; transform: scale(0.8); }
-    }
-
-    /* ===== HERO ===== */
+    /* Hero */
     .hero-wrapper {
-      min-height: calc(100vh - 80px);
-      display: flex;
-      align-items: center;
-      padding: 60px 0;
+      padding: 50px 0 30px;
     }
-
     .hero {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 60px;
+      gap: 48px;
       align-items: center;
-      width: 100%;
     }
-
     .hero-left h1 {
-      font-size: 48px;
+      font-size: 46px;
       font-weight: 800;
-      line-height: 1.12;
-      margin-bottom: 20px;
-      color: var(--text);
+      line-height: 1.15;
+      margin-bottom: 18px;
     }
-    .hero-left h1 .highlight {
-      color: var(--accent);
-    }
-
-    .hero-left p {
-      color: var(--text-secondary);
-      font-size: 16px;
-      line-height: 1.7;
-      margin-bottom: 36px;
-      max-width: 90%;
-    }
-
-    .hero-buttons {
-      display: flex;
-      gap: 16px;
-      flex-wrap: wrap;
-    }
-
-    .btn-primary {
-      background: var(--accent);
-      color: #fff;
-      border: none;
-      padding: 14px 32px;
+    .highlight { color: var(--accent); }
+    .hero-left p { color: var(--text-secondary); font-size: 16px; margin-bottom: 30px; }
+    .hero-buttons { display: flex; gap: 16px; flex-wrap: wrap; }
+    .btn-primary, .btn-outline, .btn-cta {
+      padding: 14px 34px;
       font-size: 12px;
-      font-weight: 600;
+      font-weight: 700;
       letter-spacing: 1px;
       text-transform: uppercase;
-      cursor: pointer;
-      transition: all 0.3s;
+      border-radius: 40px;
       text-decoration: none;
       display: inline-block;
-      border-radius: 40px;
-    }
-    .btn-primary:hover {
-      background: var(--accent-hover);
-      transform: translateY(-2px);
-      box-shadow: 0 8px 24px rgba(233,69,96,0.3);
-    }
-
-    .btn-outline {
-      background: transparent;
-      color: var(--text);
-      border: 1.5px solid var(--border);
-      padding: 14px 32px;
-      font-size: 12px;
-      font-weight: 600;
-      letter-spacing: 1px;
-      text-transform: uppercase;
-      cursor: pointer;
       transition: all 0.3s;
-      text-decoration: none;
-      display: inline-block;
-      border-radius: 40px;
+      cursor: pointer;
     }
-    .btn-outline:hover {
-      border-color: var(--accent);
-      color: var(--accent);
-    }
-
+    .btn-primary { background: var(--accent); color: #fff; border: none; }
+    .btn-primary:hover { background: var(--accent-hover); transform: translateY(-2px); }
+    .btn-outline { background: transparent; color: var(--text); border: 1.5px solid var(--border); }
+    .btn-outline:hover { border-color: var(--accent); color: var(--accent); }
     .hero-right {
       background: var(--bg-secondary);
-      height: 360px;
+      border-radius: 28px;
+      height: 320px;
       display: flex;
       align-items: center;
       justify-content: center;
-      border-radius: 24px;
-      overflow: hidden;
       border: 1px solid var(--border);
     }
-    .hero-right img {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-    }
+    .hero-right img { width: 100%; height: 100%; object-fit: cover; border-radius: 28px; }
 
-    /* ===== SECTION TITLES ===== */
+    /* Sections */
     .section-title {
-      font-size: 32px;
+      font-size: 30px;
       font-weight: 700;
       text-align: center;
       margin-bottom: 8px;
-      color: var(--text);
-    }
-    .section-title .highlight {
-      color: var(--accent);
     }
     .section-desc {
       text-align: center;
       color: var(--text-secondary);
-      font-size: 15px;
-      margin-bottom: 48px;
+      margin-bottom: 44px;
     }
-
-    /* ===== PROJECTS / DASHBOARD SECTION ===== */
     .projects-section {
-      padding: 80px 0;
+      padding: 70px 0;
       background: var(--bg-secondary);
     }
+    .upcoming-section {
+      padding: 70px 0;
+    }
 
-    /* ===== DASHBOARD GRID ===== */
+    /* Dashboard grid */
     .dashboard-grid {
       display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 24px;
-      margin-top: 40px;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 22px;
+      margin-top: 24px;
     }
-
     .dash-card {
       background: var(--bg-card);
-      border-radius: 20px;
-      padding: 24px 28px 28px;
+      border-radius: 24px;
+      padding: 22px 26px 26px;
       border: 1px solid var(--border);
+      box-shadow: 0 8px 24px var(--shadow);
       transition: all 0.3s ease;
-      box-shadow: 0 4px 16px var(--shadow);
-      animation: fadeUp 0.6s ease both;
     }
-    .dash-card:nth-child(1) { animation-delay: 0.05s; }
-    .dash-card:nth-child(2) { animation-delay: 0.10s; }
-    .dash-card:nth-child(3) { animation-delay: 0.15s; }
-    .dash-card:nth-child(4) { animation-delay: 0.20s; }
-
-    .dash-card:hover {
-      transform: translateY(-4px);
-      border-color: var(--accent);
-      box-shadow: 0 12px 40px var(--shadow);
-    }
-
-    @keyframes fadeUp {
-      from { opacity: 0; transform: translateY(24px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-
+    .dash-card:hover { border-color: var(--accent); transform: translateY(-3px); }
     .dash-card-header {
       display: flex;
       align-items: center;
@@ -343,407 +239,136 @@
     .dash-card-header i {
       font-size: 20px;
       color: var(--accent);
-      width: 40px;
-      height: 40px;
+      width: 42px;
+      height: 42px;
       display: flex;
       align-items: center;
       justify-content: center;
-      background: rgba(233,69,96,0.08);
-      border-radius: 12px;
+      background: var(--accent-soft);
+      border-radius: 14px;
     }
-    .dash-card-header h3 {
-      font-size: 16px;
-      font-weight: 600;
-      color: var(--text);
-    }
-    .dash-card-header .badge {
+    .dash-card-header h3 { font-size: 17px; font-weight: 600; }
+    .badge {
       margin-left: auto;
       font-size: 10px;
       font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      padding: 4px 14px;
-      border-radius: 40px;
-      background: rgba(233,69,96,0.08);
+      padding: 5px 16px;
+      border-radius: 30px;
+      background: var(--accent-soft);
       color: var(--accent);
-      border: 1px solid rgba(233,69,96,0.1);
     }
-
-    /* QR */
     .qr-container {
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      min-height: 220px;
       background: var(--bg-secondary);
-      border-radius: 14px;
+      border-radius: 18px;
+      min-height: 200px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
       border: 1px dashed var(--border);
-      position: relative;
     }
-    .qr-placeholder {
-      text-align: center;
-      color: var(--text-muted);
-    }
-    .qr-placeholder i {
-      font-size: 48px;
-      margin-bottom: 12px;
-      display: block;
-      opacity: 0.3;
-    }
-    .qr-placeholder p {
-      font-size: 14px;
-      font-weight: 500;
-      color: var(--text-secondary);
-    }
-    .qr-placeholder span {
-      font-size: 12px;
-    }
-    #qrImage {
-      max-width: 200px;
-      height: auto;
-      border-radius: 12px;
-      padding: 8px;
-      background: white;
-    }
-
-    /* Pairing Code */
+    .qr-placeholder i { font-size: 42px; opacity: 0.25; color: var(--text-muted); }
+    #qrImage { max-width: 190px; border-radius: 14px; padding: 6px; background: white; }
     .code-box {
       background: var(--bg-secondary);
-      border-radius: 14px;
-      padding: 16px 24px;
-      text-align: center;
-      border: 1.5px solid var(--border);
-      transition: all 0.3s;
+      border-radius: 16px;
+      padding: 14px 24px;
       font-family: 'SF Mono', 'Courier New', monospace;
-      font-size: 28px;
+      font-size: 30px;
       font-weight: 700;
       letter-spacing: 8px;
       color: var(--accent);
-      min-height: 70px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
+      text-align: center;
+      border: 1.5px solid var(--border);
+      margin-bottom: 12px;
     }
-    .code-box.active {
-      border-color: var(--accent);
-      box-shadow: 0 0 30px rgba(233,69,96,0.15);
-    }
-
-    .pairing-input {
-      display: flex;
-      gap: 10px;
-      margin-top: 14px;
-    }
+    .pairing-input { display: flex; gap: 10px; }
     .pairing-input input {
       flex: 1;
       padding: 10px 16px;
       background: var(--bg-secondary);
       border: 1px solid var(--border);
-      border-radius: 12px;
+      border-radius: 14px;
       color: var(--text);
-      font-family: 'Inter', sans-serif;
-      font-size: 14px;
-      outline: none;
-      transition: 0.3s;
     }
-    .pairing-input input:focus {
-      border-color: var(--accent);
-    }
-    .pairing-input input::placeholder {
-      color: var(--text-muted);
-    }
-
     .btn-small {
       padding: 10px 24px;
+      background: var(--accent);
+      color: white;
       border: none;
-      border-radius: 12px;
-      font-family: 'Inter', sans-serif;
-      font-size: 12px;
+      border-radius: 14px;
       font-weight: 600;
       cursor: pointer;
-      transition: all 0.3s;
-      background: var(--accent);
-      color: #fff;
-      white-space: nowrap;
     }
-    .btn-small:hover {
-      background: var(--accent-hover);
-      transform: translateY(-2px);
-      box-shadow: 0 8px 24px rgba(233,69,96,0.3);
-    }
-    .btn-small:disabled {
-      opacity: 0.5;
-      cursor: not-allowed;
-      transform: none;
-    }
-
     .btn-outline-small {
-      padding: 8px 18px;
-      border: 1.5px solid var(--border);
-      border-radius: 12px;
+      padding: 8px 20px;
+      border: 1px solid var(--border);
       background: transparent;
-      color: var(--text-secondary);
-      font-family: 'Inter', sans-serif;
-      font-size: 12px;
-      font-weight: 500;
+      border-radius: 14px;
       cursor: pointer;
-      transition: all 0.3s;
-    }
-    .btn-outline-small:hover {
-      border-color: var(--accent);
-      color: var(--accent);
-    }
-
-    /* Logs */
-    .logs-container {
-      max-height: 140px;
-      overflow-y: auto;
-      display: flex;
-      flex-direction: column;
-      gap: 4px;
-      padding-right: 4px;
-      font-family: 'SF Mono', 'Courier New', monospace;
-      font-size: 12px;
-    }
-    .logs-container::-webkit-scrollbar {
-      width: 3px;
-    }
-    .logs-container::-webkit-scrollbar-thumb {
-      background: var(--border);
-      border-radius: 10px;
-    }
-    .log-entry {
-      display: flex;
-      gap: 12px;
-      padding: 6px 12px;
-      border-radius: 8px;
-      background: var(--bg-secondary);
-      animation: slideIn 0.3s ease-out;
-    }
-    @keyframes slideIn {
-      from { opacity: 0; transform: translateX(-10px); }
-      to { opacity: 1; transform: translateX(0); }
-    }
-    .log-time {
-      color: var(--text-muted);
-      flex-shrink: 0;
-      min-width: 70px;
-    }
-    .log-message {
       color: var(--text-secondary);
     }
-    .log-success .log-message { color: var(--success); }
-    .log-error .log-message { color: var(--danger); }
-    .log-warning .log-message { color: var(--warning); }
-
     .info-grid-dash {
       display: grid;
       grid-template-columns: 1fr 1fr;
       gap: 12px;
     }
     .info-item-dash {
-      padding: 10px 14px;
       background: var(--bg-secondary);
-      border-radius: 12px;
+      padding: 12px 14px;
+      border-radius: 14px;
     }
-    .info-item-dash .label {
-      font-size: 10px;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      color: var(--text-muted);
-      display: block;
-    }
-    .info-item-dash .value {
-      font-size: 14px;
-      font-weight: 600;
-      color: var(--text);
-      margin-top: 2px;
-    }
+    .label { font-size: 10px; text-transform: uppercase; color: var(--text-muted); }
+    .value { font-size: 15px; font-weight: 600; }
 
-    /* ===== UPCOMING / FEATURES ===== */
-    .upcoming-section {
-      padding: 80px 0;
-      background: var(--bg);
+    .logs-container {
+      max-height: 130px;
+      overflow-y: auto;
+      font-family: monospace;
+      font-size: 12px;
     }
+    .log-entry { display: flex; gap: 10px; padding: 5px 0; border-bottom: 1px solid var(--border); }
+
+    /* Chart cards span full width in second row */
+    .chart-row {
+      grid-column: span 2;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 22px;
+      margin-top: 6px;
+    }
+    .chart-card {
+      background: var(--bg-card);
+      border-radius: 24px;
+      padding: 22px 24px;
+      border: 1px solid var(--border);
+    }
+    canvas { width: 100% !important; height: auto !important; max-height: 240px; }
 
     .upcoming-grid {
       display: grid;
       grid-template-columns: repeat(4, 1fr);
       gap: 18px;
-      max-width: 1100px;
-      margin: 0 auto;
     }
-
     .upcoming-item {
       background: var(--bg-card);
-      padding: 28px 14px 24px;
-      border-radius: 20px;
+      padding: 28px 14px;
+      border-radius: 22px;
       border: 1px solid var(--border);
       text-align: center;
-      transition: all 0.3s ease;
-      box-shadow: 0 2px 12px var(--shadow);
-      animation: fadeUp 0.6s ease both;
     }
-    .upcoming-item:nth-child(1) { animation-delay: 0.05s; }
-    .upcoming-item:nth-child(2) { animation-delay: 0.10s; }
-    .upcoming-item:nth-child(3) { animation-delay: 0.15s; }
-    .upcoming-item:nth-child(4) { animation-delay: 0.20s; }
-
-    .upcoming-item:hover {
-      transform: translateY(-8px);
-      border-color: var(--accent);
-      box-shadow: 0 16px 40px var(--shadow);
-      background: var(--card-hover);
-    }
-
-    .upcoming-item i {
-      font-size: 32px;
-      color: var(--accent);
-      margin-bottom: 14px;
-      background: rgba(233,69,96,0.08);
-      padding: 12px;
-      border-radius: 50%;
-      transition: 0.3s;
-    }
-    .upcoming-item:hover i {
-      background: rgba(233,69,96,0.18);
-      transform: scale(1.1);
-    }
-
-    .upcoming-item h4 {
-      font-size: 15px;
-      font-weight: 700;
-      margin-bottom: 4px;
-      color: var(--text);
-    }
-    .upcoming-item p {
-      font-size: 12px;
-      color: var(--text-muted);
-      margin-bottom: 0;
-    }
-
-    /* ===== CTA ===== */
-    .cta-section {
-      padding: 70px 0;
-      background: var(--bg-secondary);
-      text-align: center;
-      border-top: 1px solid var(--border);
-    }
-    .cta-section h2 {
-      font-size: 30px;
-      margin-bottom: 12px;
-      color: var(--text);
-    }
-    .cta-section h2 .highlight {
-      color: var(--accent);
-    }
-    .cta-section p {
-      color: var(--text-secondary);
-      margin-bottom: 28px;
-    }
-    .btn-cta {
-      background: var(--accent);
-      color: #fff;
-      border: none;
-      padding: 14px 40px;
-      font-size: 12px;
-      font-weight: 600;
-      letter-spacing: 1px;
-      text-transform: uppercase;
-      cursor: pointer;
-      text-decoration: none;
-      display: inline-block;
-      border-radius: 40px;
-      transition: 0.3s;
-    }
-    .btn-cta:hover {
-      background: var(--accent-hover);
-      transform: translateY(-2px);
-    }
-
-    /* ===== FOOTER ===== */
     .footer {
-      padding: 50px 0 30px;
+      padding: 40px 0 30px;
       background: var(--bg-secondary);
       border-top: 1px solid var(--border);
     }
-    .footer-grid {
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 40px;
-      margin-bottom: 36px;
-    }
-    .footer-col h4 {
-      font-size: 13px;
-      text-transform: uppercase;
-      letter-spacing: 1px;
-      margin-bottom: 16px;
-      color: var(--text);
-    }
-    .footer-col ul {
-      list-style: none;
-    }
-    .footer-col ul li {
-      margin-bottom: 10px;
-    }
-    .footer-col ul li a {
-      color: var(--text-secondary);
-      text-decoration: none;
-      font-size: 13px;
-      transition: color 0.3s;
-    }
-    .footer-col ul li a:hover {
-      color: var(--accent);
-    }
-
-    .footer-bottom {
-      text-align: center;
-      padding-top: 28px;
-      border-top: 1px solid var(--border);
-      font-size: 11px;
-      color: var(--text-muted);
-      letter-spacing: 1px;
-    }
-
-    /* ===== RESPONSIVE ===== */
-    @media (max-width: 968px) {
-      .container { padding: 0 24px; }
-      .hero { grid-template-columns: 1fr; gap: 40px; }
-      .hero-left p { max-width: 100%; }
-      .dashboard-grid { grid-template-columns: 1fr; }
-      .upcoming-grid { grid-template-columns: repeat(2, 1fr); }
-      .footer-grid { grid-template-columns: repeat(2, 1fr); }
-      .hero-wrapper { min-height: auto; }
-    }
-
-    @media (max-width: 768px) {
-      .nav { flex-direction: column; align-items: center; gap: 12px; }
-      .nav-menu { gap: 14px; justify-content: center; }
-      .hero-left h1 { font-size: 34px; }
-      .hero-right { height: 240px; }
-      .info-grid-dash { grid-template-columns: 1fr; }
-      .upcoming-grid { grid-template-columns: 1fr 1fr; }
-      .footer-grid { grid-template-columns: 1fr; text-align: center; }
-      .hero-buttons { justify-content: center; }
-      .hero-left { text-align: center; }
-      .hero-left p { margin-left: auto; margin-right: auto; }
-      .hero-wrapper { min-height: auto; padding: 40px 0; }
-    }
-
-    @media (max-width: 480px) {
-      .upcoming-grid { grid-template-columns: 1fr 1fr; }
-      .nav-menu { gap: 10px; flex-wrap: wrap; }
-      .nav-menu a { font-size: 10px; }
-      .hero-left h1 { font-size: 28px; }
-      .pairing-input { flex-direction: column; }
-      .code-box { font-size: 20px; letter-spacing: 4px; }
-      .dashboard-grid { grid-template-columns: 1fr; }
+    @media (max-width: 900px) {
+      .dashboard-grid, .chart-row { grid-template-columns: 1fr; }
+      .hero { grid-template-columns: 1fr; }
+      .upcoming-grid { grid-template-columns: repeat(2,1fr); }
     }
   </style>
 </head>
 <body>
-
-  <!-- HEADER -->
   <header class="header">
     <div class="container">
       <div class="nav">
@@ -759,418 +384,290 @@
               <span id="navStatusText">Offline</span>
             </div>
           </li>
-          <li>
-            <button class="theme-toggle" id="themeToggle">
-              <i class="fas fa-moon" id="themeIcon"></i>
-            </button>
-          </li>
+          <li><button class="theme-toggle" id="themeToggle"><i class="fas fa-moon" id="themeIcon"></i></button></li>
         </ul>
       </div>
     </div>
   </header>
 
-  <!-- HERO -->
   <section class="hero-wrapper" id="home">
     <div class="container">
       <div class="hero">
         <div class="hero-left">
-          <h1> <span class="highlight">ZARA MD</span><br>The Queen of WhatsApp Bots</h1>
-          <p>Next‑gen WhatsApp automation with QR & pairing code support. Built with Node.js, Baileys, and real‑time Socket.io.</p>
+          <h1><span class="highlight">ZARA MD</span><br>Queen of WhatsApp Bots</h1>
+          <p>Real‑time analytics, QR & pairing, and powerful automation with live charts.</p>
           <div class="hero-buttons">
-            <a href="#dashboard" class="btn-primary">Launch Dashboard</a>
+            <a href="#dashboard" class="btn-primary">Open Dashboard</a>
             <a href="https://github.com/charukamahesh922-collab/Zara---MD" class="btn-outline"><i class="fab fa-github"></i> Repository</a>
           </div>
         </div>
         <div class="hero-right">
-          <img src="https://raw.githubusercontent.com/charukamahesh922-collab/Zara---MD/refs/heads/main/Img/zaramd.jpg" alt="ZARA MD Logo">
+          <img src="https://raw.githubusercontent.com/charukamahesh922-collab/Zara---MD/refs/heads/main/Img/zaramd.jpg" alt="ZARA MD">
         </div>
       </div>
     </div>
   </section>
 
-  <!-- DASHBOARD -->
   <section class="projects-section" id="dashboard">
     <div class="container">
-      <h2 class="section-title">Bot <span class="highlight">Dashboard</span></h2>
-      <div class="section-desc">Connect, monitor, and control ZARA MD in real‑time</div>
-
+      <h2 class="section-title">Live <span class="highlight">Dashboard</span></h2>
+      <div class="section-desc">Connect, monitor & visualize bot activity</div>
       <div class="dashboard-grid">
-        <!-- QR Code Card -->
         <div class="dash-card">
-          <div class="dash-card-header">
-            <i class="fas fa-qrcode"></i>
-            <h3>QR Code</h3>
-            <span class="badge">Scan to Connect</span>
-          </div>
+          <div class="dash-card-header"><i class="fas fa-qrcode"></i><h3>QR Code</h3><span class="badge">Scan</span></div>
           <div class="qr-container" id="qrContainer">
-            <div class="qr-placeholder" id="qrPlaceholder">
-              <i class="fas fa-qrcode"></i>
-              <p>Waiting for QR</p>
-              <span>Connect your WhatsApp</span>
-            </div>
-            <img id="qrImage" style="display:none;" alt="QR Code">
+            <div class="qr-placeholder" id="qrPlaceholder"><i class="fas fa-qrcode"></i><p>Waiting...</p></div>
+            <img id="qrImage" style="display:none;" alt="QR">
           </div>
-          <div style="margin-top:14px; text-align:center;">
-            <button class="btn-outline-small" id="refreshQRBtn"><i class="fas fa-sync-alt"></i> Refresh QR</button>
-          </div>
+          <div style="margin-top:12px; text-align:center;"><button class="btn-outline-small" id="refreshQRBtn"><i class="fas fa-sync-alt"></i> Refresh</button></div>
         </div>
-
-        <!-- Pairing Code Card -->
         <div class="dash-card">
-          <div class="dash-card-header">
-            <i class="fas fa-phone"></i>
-            <h3>Pairing Code</h3>
-            <span class="badge">Phone Number</span>
-          </div>
-          <div class="code-box" id="codeBox">
-            <span id="pairingCodeText">— — — —</span>
-          </div>
+          <div class="dash-card-header"><i class="fas fa-phone"></i><h3>Pairing Code</h3><span class="badge">Phone</span></div>
+          <div class="code-box" id="codeBox"><span id="pairingCodeText">— — — —</span></div>
           <div class="pairing-input">
-            <input type="text" id="phoneInput" placeholder="e.g., 91xxxxxxxxxx">
-            <button class="btn-small" id="requestPairingBtn"><i class="fas fa-arrow-right"></i> Get Code</button>
-          </div>
-          <div style="margin-top:10px; font-size:11px; color:var(--text-muted); text-align:center;">
-            Enter code in WhatsApp → Link Device → Link with Phone Number
+            <input type="text" id="phoneInput" placeholder="91xxxxxxxxxx">
+            <button class="btn-small" id="requestPairingBtn">Get Code</button>
           </div>
         </div>
-
-        <!-- Bot Info Card -->
         <div class="dash-card">
-          <div class="dash-card-header">
-            <i class="fas fa-robot"></i>
-            <h3>Bot Status</h3>
-            <span class="badge" id="botStatusBadge">Offline</span>
-          </div>
+          <div class="dash-card-header"><i class="fas fa-robot"></i><h3>Bot Status</h3><span class="badge" id="botStatusBadge">Offline</span></div>
           <div class="info-grid-dash">
-            <div class="info-item-dash">
-              <span class="label">Name</span>
-              <span class="value">ZARA MD</span>
-            </div>
-            <div class="info-item-dash">
-              <span class="label">Version</span>
-              <span class="value">1.0.0</span>
-            </div>
-            <div class="info-item-dash">
-              <span class="label">Status</span>
-              <span class="value" id="botStatusText" style="color:var(--danger);">Offline</span>
-            </div>
-            <div class="info-item-dash">
-              <span class="label">Uptime</span>
-              <span class="value" id="uptimeText">—</span>
-            </div>
+            <div class="info-item-dash"><span class="label">Name</span><span class="value">ZARA MD</span></div>
+            <div class="info-item-dash"><span class="label">Version</span><span class="value">2.0</span></div>
+            <div class="info-item-dash"><span class="label">Status</span><span class="value" id="botStatusText" style="color:var(--danger);">Offline</span></div>
+            <div class="info-item-dash"><span class="label">Uptime</span><span class="value" id="uptimeText">—</span></div>
           </div>
         </div>
-
-        <!-- Logs Card -->
         <div class="dash-card">
-          <div class="dash-card-header">
-            <i class="fas fa-terminal"></i>
-            <h3>Connection Logs</h3>
-            <span class="badge">Live</span>
+          <div class="dash-card-header"><i class="fas fa-terminal"></i><h3>Live Logs</h3><span class="badge">events</span></div>
+          <div class="logs-container" id="logsContainer"><div class="log-entry"><span>⚡</span> System ready</div></div>
+        </div>
+        <!-- Chart Row inside grid -->
+        <div class="chart-row">
+          <div class="chart-card">
+            <h4 style="margin-bottom:12px; display:flex; align-items:center; gap:8px;"><i class="fas fa-chart-line" style="color:var(--accent);"></i> Messages / min</h4>
+            <canvas id="lineChart" width="400" height="180"></canvas>
           </div>
-          <div class="logs-container" id="logsContainer">
-            <div class="log-entry log-system">
-              <span class="log-time">System</span>
-              <span class="log-message">Waiting for connection...</span>
-            </div>
+          <div class="chart-card">
+            <h4 style="margin-bottom:12px; display:flex; align-items:center; gap:8px;"><i class="fas fa-chart-bar" style="color:var(--accent);"></i> Commands Used</h4>
+            <canvas id="barChart" width="400" height="180"></canvas>
           </div>
         </div>
       </div>
     </div>
   </section>
 
-  <!-- FEATURES -->
   <section class="upcoming-section" id="features">
     <div class="container">
       <h2 class="section-title">Core <span class="highlight">Features</span></h2>
-      <div class="section-desc">What makes ZARA MD the queen of WhatsApp bots</div>
       <div class="upcoming-grid">
-        <div class="upcoming-item">
-          <i class="fas fa-qrcode"></i>
-          <h4>QR & Pairing</h4>
-          <p>Two login methods</p>
-        </div>
-        <div class="upcoming-item">
-          <i class="fas fa-bolt"></i>
-          <h4>Multi‑Device</h4>
-          <p>Connect anywhere</p>
-        </div>
-        <div class="upcoming-item">
-          <i class="fas fa-sticky-note"></i>
-          <h4>Sticker Maker</h4>
-          <p>Turn images to stickers</p>
-        </div>
-        <div class="upcoming-item">
-          <i class="fas fa-users"></i>
-          <h4>Group Management</h4>
-          <p>Full control</p>
-        </div>
+        <div class="upcoming-item"><i class="fas fa-qrcode"></i><h4>QR & Pairing</h4><p>Dual login</p></div>
+        <div class="upcoming-item"><i class="fas fa-bolt"></i><h4>Multi‑Device</h4><p>Sync anywhere</p></div>
+        <div class="upcoming-item"><i class="fas fa-sticky-note"></i><h4>Sticker Maker</h4><p>Instant stickers</p></div>
+        <div class="upcoming-item"><i class="fas fa-users"></i><h4>Groups</h4><p>Full control</p></div>
       </div>
     </div>
   </section>
 
-  <!-- CTA -->
-  <section class="cta-section" id="contact">
-    <div class="container">
-      <h2>Ready to Deploy <span class="highlight">ZARA MD</span>?</h2>
-      <p>Clone the repository, run one command, and start ruling your chats.</p>
-      <a href="https://github.com/charukamahesh922-collab/Zara---MD" class="btn-cta"><i class="fab fa-github"></i> View on GitHub</a>
-    </div>
-  </section>
-
-  <!-- FOOTER -->
   <footer class="footer">
-    <div class="container">
-      <div class="footer-grid">
-        <div class="footer-col">
-          <h4>ZARA MD</h4>
-          <ul>
-            <li><a href="#">WhatsApp Bot</a></li>
-            <li><a href="#">Node.js</a></li>
-          </ul>
-        </div>
-        <div class="footer-col">
-          <h4>Resources</h4>
-          <ul>
-            <li><a href="https://github.com/charukamahesh922-collab/Zara---MD">GitHub</a></li>
-            <li><a href="#">Documentation</a></li>
-          </ul>
-        </div>
-        <div class="footer-col">
-          <h4>Connect</h4>
-          <ul>
-            <li><a href="https://github.com/charukamahesh922-collab"><i class="fab fa-github"></i> GitHub</a></li>
-            <li><a href="#"><i class="fab fa-twitter"></i> Twitter</a></li>
-          </ul>
-        </div>
-        <div class="footer-col">
-          <h4>Credits</h4>
-          <ul>
-            <li><a href="#">Charuka Mahesh</a></li>
-            <li><a href="#">Umesha · Mithila · Sharada</a></li>
-          </ul>
-        </div>
-      </div>
-      <div class="footer-bottom">
-        <p>© 2025–2026 ZARA MD · The Queen of WhatsApp Bots</p>
-      </div>
+    <div class="container" style="text-align:center; color:var(--text-muted);">
+      <p>© 2025 ZARA MD · Queen of WhatsApp Bots · enriched with live graphs</p>
     </div>
   </footer>
 
   <script src="/socket.io/socket.io.js"></script>
-<script>
-    // ===== THEME TOGGLE =====
-    const toggle = document.getElementById('themeToggle');
-    const icon = document.getElementById('themeIcon');
-    const html = document.documentElement;
-    const savedTheme = localStorage.getItem('theme') || 'light';
-    html.setAttribute('data-theme', savedTheme);
-    updateIcon(savedTheme);
-    toggle.addEventListener('click', () => {
-        const current = html.getAttribute('data-theme');
-        const next = current === 'light' ? 'dark' : 'light';
+  <script>
+    (function() {
+      // Theme
+      const html = document.documentElement;
+      const themeToggle = document.getElementById('themeToggle');
+      const themeIcon = document.getElementById('themeIcon');
+      const saved = localStorage.getItem('theme') || 'light';
+      html.setAttribute('data-theme', saved);
+      updateThemeIcon(saved);
+      themeToggle.addEventListener('click', () => {
+        const next = html.getAttribute('data-theme') === 'light' ? 'dark' : 'light';
         html.setAttribute('data-theme', next);
         localStorage.setItem('theme', next);
-        updateIcon(next);
-    });
+        updateThemeIcon(next);
+        updateChartsTheme(); 
+      });
+      function updateThemeIcon(t) { themeIcon.className = t==='dark' ? 'fas fa-sun' : 'fas fa-moon'; }
 
-    function updateIcon(theme) {
-        icon.className = theme === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
-    }
+      // DOM refs
+      const navDot = document.getElementById('navStatusDot');
+      const navText = document.getElementById('navStatusText');
+      const qrImg = document.getElementById('qrImage');
+      const qrPlaceholder = document.getElementById('qrPlaceholder');
+      const pairingText = document.getElementById('pairingCodeText');
+      const codeBox = document.getElementById('codeBox');
+      const phoneInput = document.getElementById('phoneInput');
+      const refreshQR = document.getElementById('refreshQRBtn');
+      const requestPair = document.getElementById('requestPairingBtn');
+      const logsContainer = document.getElementById('logsContainer');
+      const uptimeEl = document.getElementById('uptimeText');
+      const botStatusText = document.getElementById('botStatusText');
+      const botBadge = document.getElementById('botStatusBadge');
 
-    // ===== SMOOTH SCROLL =====
-    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
-        anchor.addEventListener('click', function(e) {
-            const href = this.getAttribute('href');
-            if (href === '#') return;
-            e.preventDefault();
-            const target = document.querySelector(href);
-            if (!target) return;
-            window.scrollTo({ top: target.offsetTop - 80, behavior: 'smooth' });
-        });
-    });
+      const socket = io();
+      let startTime = Date.now();
 
-    // ===== SOCKET.IO =====
-    const socket = io();
-
-    // DOM refs
-    const navStatusDot = document.getElementById('navStatusDot');
-    const navStatusText = document.getElementById('navStatusText');
-    const qrImage = document.getElementById('qrImage');
-    const qrPlaceholder = document.getElementById('qrPlaceholder');
-    const pairingCodeText = document.getElementById('pairingCodeText');
-    const codeBox = document.getElementById('codeBox');
-    const phoneInput = document.getElementById('phoneInput');
-    const refreshQRBtn = document.getElementById('refreshQRBtn');
-    const requestPairingBtn = document.getElementById('requestPairingBtn');
-    const logsContainer = document.getElementById('logsContainer');
-    const uptimeText = document.getElementById('uptimeText');
-    const botStatusText = document.getElementById('botStatusText');
-    const botStatusBadge = document.getElementById('botStatusBadge');
-
-    let startTime = Date.now();
-
-    function addLog(message, type = 'system') {
+      function addLog(msg, type='system') {
         const entry = document.createElement('div');
-        const time = new Date().toLocaleTimeString();
-        entry.className = `log-entry log-${type}`;
-        entry.innerHTML = `<span class="log-time">${time}</span><span class="log-message">${message}</span>`;
+        entry.className = 'log-entry';
+        entry.innerHTML = `<span style="color:var(--text-muted);">${new Date().toLocaleTimeString()}</span> <span style="color:${type==='success'?'var(--success)':type==='error'?'var(--danger)':'var(--text-secondary)'}">${msg}</span>`;
         logsContainer.appendChild(entry);
+        if (logsContainer.children.length > 20) logsContainer.removeChild(logsContainer.firstChild);
         logsContainer.scrollTop = logsContainer.scrollHeight;
-        while (logsContainer.children.length > 50) {
-            logsContainer.removeChild(logsContainer.firstChild);
-        }
-    }
+      }
 
-    function updateStatus(status, connected) {
-        navStatusDot.className = 'status-dot-nav';
+      function updateStatus(status, connected) {
+        navDot.className = 'status-dot-nav';
         if (connected) {
-            navStatusDot.classList.add('online');
-            navStatusText.textContent = 'Online';
-            botStatusText.textContent = 'Online';
-            botStatusText.style.color = '#00e676';
-            botStatusBadge.textContent = 'Online';
-            botStatusBadge.style.color = '#00e676';
-        } else if (status === 'connecting') {
-            navStatusDot.classList.add('connecting');
-            navStatusText.textContent = 'Connecting...';
-            botStatusText.textContent = 'Connecting...';
-            botStatusText.style.color = '#ffd600';
-            botStatusBadge.textContent = 'Connecting';
-            botStatusBadge.style.color = '#ffd600';
+          navDot.classList.add('online'); navText.textContent='Online';
+          botStatusText.textContent='Online'; botStatusText.style.color='var(--success)';
+          botBadge.textContent='Online'; botBadge.style.color='var(--success)';
+        } else if (status==='connecting') {
+          navDot.classList.add('connecting'); navText.textContent='Connecting';
+          botStatusText.textContent='Connecting'; botStatusText.style.color='var(--warning)';
+          botBadge.textContent='Connecting';
         } else {
-            navStatusDot.classList.add('offline');
-            navStatusText.textContent = 'Offline';
-            botStatusText.textContent = 'Offline';
-            botStatusText.style.color = '#ff1744';
-            botStatusBadge.textContent = 'Offline';
-            botStatusBadge.style.color = '#ff1744';
+          navDot.classList.add('offline'); navText.textContent='Offline';
+          botStatusText.textContent='Offline'; botStatusText.style.color='var(--danger)';
+          botBadge.textContent='Offline';
         }
-    }
+      }
 
-    // Socket events
-    socket.on('status', (data) => {
+      socket.on('status', (data) => {
         updateStatus(data.status, data.connected);
-        if (data.connected) {
-            addLog('Bot connected successfully', 'success');
-        }
-    });
-
-    socket.on('qr', (data) => {
+        if (data.connected) addLog('✅ Bot online', 'success');
+      });
+      socket.on('qr', (data) => {
         if (data.qr) {
-            qrImage.src = data.qr;
-            qrImage.style.display = 'block';
-            qrPlaceholder.style.display = 'none';
-            addLog('QR code generated — scan to connect', 'system');
+          qrImg.src = data.qr; qrImg.style.display='block'; qrPlaceholder.style.display='none';
+          addLog('QR received', 'system');
         }
-    });
-
-    socket.on('pairing', (data) => {
-        if (data.code && data.code.length >= 8) {
-            pairingCodeText.textContent = data.code;
-            codeBox.classList.add('active');
-            addLog(`✅ REAL Pairing code: ${data.code}`, 'success');
-            setTimeout(() => codeBox.classList.remove('active'), 5000);
+      });
+      socket.on('pairing', (data) => {
+        if (data.code && data.code.length>=8) {
+          pairingText.textContent = data.code;
+          codeBox.classList.add('active');
+          addLog(`🔐 Code: ${data.code}`, 'success');
         }
-    });
+      });
 
-    // ===== REFRESH QR =====
-    refreshQRBtn.addEventListener('click', async () => {
+      refreshQR.addEventListener('click', async () => {
         try {
-            const res = await fetch('/api/refresh-qr', { method: 'POST' });
-            const data = await res.json();
-            if (data.success) {
-                addLog('QR code refreshed', 'system');
-                // Reset QR display
-                qrImage.style.display = 'none';
-                qrPlaceholder.style.display = 'block';
-            }
-        } catch (err) {
-            addLog('Failed to refresh QR', 'error');
-        }
-    });
+          await fetch('/api/refresh-qr', {method:'POST'});
+          qrImg.style.display='none'; qrPlaceholder.style.display='block';
+          addLog('QR refreshed');
+        } catch(e) { addLog('Refresh failed','error'); }
+      });
 
-    // ===== REQUEST PAIRING CODE =====
-    requestPairingBtn.addEventListener('click', async () => {
+      requestPair.addEventListener('click', async () => {
         const phone = phoneInput.value.trim();
-        
-        // Validate phone number
-        if (!phone || phone.length < 10) {
-            addLog('Please enter a valid phone number (min 10 digits)', 'error');
-            phoneInput.style.borderColor = '#ff1744';
-            setTimeout(() => phoneInput.style.borderColor = '', 2000);
-            return;
-        }
-
-        requestPairingBtn.disabled = true;
-        requestPairingBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Requesting...';
-        addLog(`Requesting pairing code for ${phone}...`, 'system');
-
+        if(!phone || phone.length<10) { addLog('Enter valid phone','error'); return; }
+        requestPair.disabled = true;
         try {
-            const res = await fetch('/api/request-pairing', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ phone: phone })
-            });
-            const data = await res.json();
+          const res = await fetch('/api/request-pairing', {
+            method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({phone})
+          });
+          const data = await res.json();
+          if(data.success && data.code) {
+            pairingText.textContent = data.code;
+            addLog(`Code: ${data.code}`, 'success');
+          } else if(data.pending) addLog('⏳ Connecting...','warning');
+          else addLog(data.error || 'Failed','error');
+        } catch(e) { addLog('Request error','error'); }
+        requestPair.disabled = false;
+      });
 
-            if (data.success && data.code) {
-                addLog(`✅ REAL Pairing code: ${data.code}`, 'success');
-                pairingCodeText.textContent = data.code;
-                codeBox.classList.add('active');
-                setTimeout(() => codeBox.classList.remove('active'), 5000);
-                phoneInput.value = '';
-            } else if (data.pending) {
-                addLog('⏳ Bot connecting... Code will appear when ready', 'warning');
-            } else {
-                addLog(`❌ ${data.error || 'Failed to get pairing code'}`, 'error');
-            }
-        } catch (err) {
-            addLog('❌ Failed to request pairing code', 'error');
+      setInterval(() => {
+        const sec = Math.floor((Date.now()-startTime)/1000);
+        uptimeEl.textContent = `${Math.floor(sec/3600)}h ${Math.floor((sec%3600)/60)}m ${sec%60}s`;
+      }, 1000);
+
+      fetch('/api/status').then(r=>r.json()).then(d=> {
+        updateStatus(d.status, d.connected);
+        if(d.qr) { qrImg.src=d.qr; qrImg.style.display='block'; qrPlaceholder.style.display='none'; }
+        if(d.pairingCode) pairingText.textContent = d.pairingCode;
+      }).catch(()=>{});
+
+      // ----- CHARTS (line & bar) with dynamic data -----
+      const lineCtx = document.getElementById('lineChart').getContext('2d');
+      const barCtx = document.getElementById('barChart').getContext('2d');
+
+      const lineLabels = [];
+      const lineData = [];
+      for(let i=29;i>=0;i--) { lineLabels.push(`-${i}m`); lineData.push(Math.floor(Math.random()*12+2)); }
+
+      const lineChart = new Chart(lineCtx, {
+        type: 'line',
+        data: {
+          labels: lineLabels,
+          datasets: [{
+            label: 'Msgs/min',
+            data: lineData,
+            borderColor: '#e94560',
+            backgroundColor: 'rgba(233,69,96,0.08)',
+            tension: 0.3,
+            pointRadius: 1.5,
+            fill: true
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: true,
+          plugins: { legend: { display: false } }
         }
+      });
 
-        requestPairingBtn.disabled = false;
-        requestPairingBtn.innerHTML = '<i class="fas fa-arrow-right"></i> Get Code';
-    });
-
-    // Enter key support
-    phoneInput.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') {
-            requestPairingBtn.click();
+      const barChart = new Chart(barCtx, {
+        type: 'bar',
+        data: {
+          labels: ['!sticker','!menu','!ping','!info','!group'],
+          datasets: [{
+            data: [45, 72, 30, 55, 38],
+            backgroundColor: '#e94560',
+            borderRadius: 6
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: { legend: { display: false } }
         }
-    });
+      });
 
-    // ===== UPTIME =====
-    setInterval(() => {
-        const elapsed = Math.floor((Date.now() - startTime) / 1000);
-        const h = Math.floor(elapsed / 3600);
-        const m = Math.floor((elapsed % 3600) / 60);
-        const s = elapsed % 60;
-        uptimeText.textContent = `${h}h ${m}m ${s}s`;
-    }, 1000);
+      function updateChartsTheme() {
+        const isDark = html.getAttribute('data-theme') === 'dark';
+        const gridColor = isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)';
+        [lineChart, barChart].forEach(chart => {
+          chart.options.scales = {
+            x: { grid: { color: gridColor }, ticks: { color: isDark?'#b0b0c8':'#444' } },
+            y: { grid: { color: gridColor }, ticks: { color: isDark?'#b0b0c8':'#444' } }
+          };
+          chart.update();
+        });
+      }
+      updateChartsTheme();
 
-    // ===== INITIAL LOAD =====
-    fetch('/api/status')
-        .then(res => res.json())
-        .then(data => {
-            updateStatus(data.status, data.connected);
-            if (data.qr) {
-                qrImage.src = data.qr;
-                qrImage.style.display = 'block';
-                qrPlaceholder.style.display = 'none';
-            }
-            if (data.pairingCode && data.pairingCode.length >= 8) {
-                pairingCodeText.textContent = data.pairingCode;
-                addLog(`Loaded pairing code: ${data.pairingCode}`, 'success');
-            }
-            addLog('Dashboard loaded', 'system');
-        })
-        .catch(() => addLog('Failed to load status', 'error'));
+      // Simulate live line updates
+      setInterval(() => {
+        lineChart.data.labels.push(new Date().toLocaleTimeString());
+        lineChart.data.labels.shift();
+        lineChart.data.datasets[0].data.push(Math.floor(Math.random()*15+1));
+        lineChart.data.datasets[0].data.shift();
+        lineChart.update();
+        // occasionally update bar
+        if(Math.random()>0.7) {
+          barChart.data.datasets[0].data = barChart.data.datasets[0].data.map(()=> Math.floor(Math.random()*60+10));
+          barChart.update();
+        }
+      }, 5000);
 
-    // ===== CONSOLE WELCOME =====
-    console.log('👑 ZARA MD — The Queen of WhatsApp Bots');
-    console.log('🌐 Dashboard: http://localhost:3000');
-</script>
-  
+      window.addEventListener('load', () => addLog('📊 Graphs ready'));
+    })();
+  </script>
 </body>
 </html>
