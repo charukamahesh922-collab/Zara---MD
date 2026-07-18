@@ -7,7 +7,8 @@
 // 2. Customize bot name and prefix if needed
 // 3. Set webInterface: true/false for web dashboard
 // 4. Choose loginMethod: 'qr' or 'pair'
-// 5. Customize welcome message below
+// 5. Configure database for persistent sessions
+// 6. Customize welcome message below
 // ============================================
 
 module.exports = {
@@ -34,11 +35,37 @@ module.exports = {
     // 🌐 WEB INTERFACE SETTINGS
     // ==========================================
     webInterface: true,              // true = Web UI | false = Console only
+    port: process.env.PORT || 3000,  // Railway uses PORT env variable
 
     // ==========================================
     // 🔑 LOGIN METHOD
     // ==========================================
     loginMethod: 'qr',               // 'qr' or 'pair'
+
+    // ==========================================
+    // 💾 DATABASE CONFIGURATION
+    // ==========================================
+    database: {
+        enabled: true,               // Enable persistent sessions
+        type: 'postgresql',          // 'postgresql', 'redis', or 'local'
+        
+        // PostgreSQL (Recommended for Railway)
+        postgresql: {
+            url: process.env.DATABASE_URL, // Railway auto-provides this
+            table: 'auth_sessions',
+        },
+        
+        // Redis (Alternative)
+        redis: {
+            url: process.env.REDIS_URL,    // Add Redis plugin in Railway
+        },
+        
+        // Local fallback (uses file system, not persistent on Railway)
+        local: {
+            path: './auth_info',
+            backupInterval: 300000, // 5 minutes
+        }
+    },
 
     // ==========================================
     // 🎉 WELCOME MESSAGE SETTINGS
@@ -77,24 +104,18 @@ module.exports = {
     },
 
     // ==========================================
-    // 🔧 ADVANCED SETTINGS (Coming Soon)
+    // 🔧 ADVANCED SETTINGS
     // ==========================================
-    // database: {
-    //     enabled: false,
-    //     type: 'mongodb',
-    //     url: 'mongodb://localhost:27017/zara-md',
-    // },
-    //
-    // features: {
-    //     stickerMaker: true,
-    //     groupManagement: true,
-    //     aiChat: false,
-    //     antiSpam: true,
-    // },
-    //
-    // apis: {
-    //     openai: '',
-    //     weather: '',
-    //     google: '',
-    // },
+    features: {
+        stickerMaker: true,
+        groupManagement: true,
+        aiChat: false,
+        antiSpam: true,
+    },
+
+    apis: {
+        openai: process.env.OPENAI_API_KEY || '',
+        weather: process.env.WEATHER_API_KEY || '',
+        google: process.env.GOOGLE_API_KEY || '',
+    },
 };
