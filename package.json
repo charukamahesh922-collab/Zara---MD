@@ -4,8 +4,7 @@
   "description": "👑 ZARA MD — The Queen of WhatsApp Bots",
   "main": "index.js",
   "scripts": {
-    "start": "node index.js",
-    "postinstall": "echo '✅ ZARA MD installed!'"
+    "start": "node index.js"
   },
   "dependencies": {
     "@hapi/boom": "^10.0.1",
@@ -22,6 +21,6 @@
     "ytdl-core": "^4.11.5"
   },
   "engines": {
-    "node": ">=18.0.0 <24.0.0"
+    "node": ">=18.0.0"
   }
 }
