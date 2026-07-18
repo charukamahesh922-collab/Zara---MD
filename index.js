@@ -426,7 +426,7 @@ async function startBot() {
     console.log(`║     👑 ${config.bot.name} BOT 👑            ║`);
     console.log(`║   The Queen of WhatsApp Bots      ║`);
     console.log(`║   🌐 Port: ${config.port}                  ║`);
-    console.log(`║   💾 Database: ${config.database.enabled ? config.database.type : 'Local'}           ║`);
+    console.log(`║   console.log(`║   💾 Storage: Railway Volume (Persistent)           ║`);
     console.log(`║   📱 Bot starting...              ║`);
     console.log(`╚═══════════════════════════════════╝\n`);
     
