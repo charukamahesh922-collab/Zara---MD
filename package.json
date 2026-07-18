@@ -1,7 +1,7 @@
 {
   "name": "zara-md",
   "version": "2.0.0",
-  "description": "👑 ZARA MD — The Queen of WhatsApp Bots with Persistent Sessions",
+  "description": "👑 ZARA MD — The Queen of WhatsApp Bots",
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
@@ -15,15 +15,13 @@
     "form-data": "^4.0.6",
     "jimp": "^0.16.13",
     "link-preview-js": "^3.2.0",
-    "pg": "^8.11.3",
     "qrcode": "^1.5.3",
     "qrcode-terminal": "^0.12.0",
     "socket.io": "^4.7.2",
-    "youtube-dl-exec": "^3.1.9",
     "yt-search": "^2.13.1",
     "ytdl-core": "^4.11.5"
   },
   "engines": {
-    "node": ">=20.18.1"
+    "node": ">=18.0.0 <24.0.0"
   }
 }
