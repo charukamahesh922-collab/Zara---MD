@@ -6,9 +6,10 @@ const axios = require('axios');
 const qrcode = require('qrcode-terminal');
 const QRCode = require('qrcode');
 
-// ===== LOAD CONFIG & COMMANDS =====
+// ===== LOAD CONFIG, DATABASE & COMMANDS =====
 const config = require('./config.js');
 const server = require('./server.js');
+const db = require('./database.js');
 const { 
     handleYTMP4, handleYTMP3,
     handleTikTok, handleFacebook, handleInstagram,
@@ -40,9 +41,15 @@ const downloadDir = path.join(__dirname, 'downloads');
 if (!fs.existsSync(downloadDir)) fs.mkdirSync(downloadDir, { recursive: true });
 
 // ===== WEB FUNCTIONS =====
-function updateWebQR(qr) { if (qr) QRCode.toDataURL(qr, (err, url) => { if (!err) server.updateQR(url); }); }
-function updateWebPairing(code) { if (code?.length >= 8) server.updatePairingCode(code); }
-function updateWebStatus(status, connected) { server.updateStatus(status, connected); }
+function updateWebQR(qr) { 
+    if (qr) QRCode.toDataURL(qr, (err, url) => { if (!err) server.updateQR(url); }); 
+}
+function updateWebPairing(code) { 
+    if (code?.length >= 8) server.updatePairingCode(code); 
+}
+function updateWebStatus(status, connected) { 
+    server.updateStatus(status, connected); 
+}
 
 // ===== DOWNLOAD LOGO =====
 async function getLogoBuffer() {
@@ -57,10 +64,23 @@ async function sendWelcomeMessage(sock) {
     try {
         const ownerJid = config.owner.number + '@s.whatsapp.net';
         const logoBuffer = await getLogoBuffer();
-        const welcomeText = `⚡ *${config.bot.name}* ⚡\n\n───────────────────────\n✅ Status : Online\n📌 Version : ${config.bot.version}\n👑 Owner : ${config.owner.number}\n📡 Web : http://localhost:3000\n📅 ${new Date().toLocaleDateString()} ⏰ ${new Date().toLocaleTimeString()}\n───────────────────────\n\n💫 Rule Your Chats!\n━━━━━━━━━━━━━━━━━━━━━━━\n📌 *Send:* menu | help\n\n${footer}`;
-        if (logoBuffer) await sock.sendMessage(ownerJid, { image: logoBuffer, caption: welcomeText, mimetype: 'image/jpeg' });
-        else await sock.sendMessage(ownerJid, { text: welcomeText });
-    } catch (e) { console.error('❌ Welcome error:', e.message); }
+        const welcomeText = config.messages.welcome
+            .replace('{botName}', config.bot.name)
+            .replace('{version}', config.bot.version)
+            .replace('{ownerNumber}', config.owner.number);
+        
+        if (logoBuffer) {
+            await sock.sendMessage(ownerJid, { 
+                image: logoBuffer, 
+                caption: welcomeText, 
+                mimetype: 'image/jpeg' 
+            });
+        } else {
+            await sock.sendMessage(ownerJid, { text: welcomeText });
+        }
+    } catch (e) { 
+        console.error('❌ Welcome error:', e.message); 
+    }
 }
 
 // ===== MENUS =====
@@ -116,44 +136,146 @@ async function generatePairingCode(phone) {
     pairingInProgress = true;
     try {
         const { state, saveCreds } = await useMultiFileAuthState('auth_info');
-        const tempSock = makeWASocket({ auth: state, browser: [config.bot.name, 'Chrome', config.bot.version], markOnlineOnConnect: false, connectTimeoutMs: 30000, defaultQueryTimeoutMs: 30000, keepAliveIntervalMs: 30000, version: [2, 2403, 2], generateHighQualityLinkPreview: false, shouldSyncHistoryMessage: () => false });
+        const tempSock = makeWASocket({ 
+            auth: state, 
+            browser: [config.bot.name, 'Chrome', config.bot.version], 
+            markOnlineOnConnect: false, 
+            connectTimeoutMs: 30000, 
+            defaultQueryTimeoutMs: 30000, 
+            keepAliveIntervalMs: 30000, 
+            version: [2, 2403, 2], 
+            generateHighQualityLinkPreview: false, 
+            shouldSyncHistoryMessage: () => false 
+        });
+        
         await new Promise(r => setTimeout(r, 3000));
         const code = await tempSock.requestPairingCode(phone);
+        
         if (code?.length >= 8) {
-            updateWebPairing(code); sock = tempSock; server.setSocket(sock);
+            updateWebPairing(code); 
+            sock = tempSock; 
+            server.setSocket(sock);
+            
             tempSock.ev.on('connection.update', async (u) => {
                 const { connection, qr } = u;
                 if (qr) { updateWebQR(qr); qrcode.generate(qr, { small: true }); }
-                if (connection === 'open') { isConnected = true; updateWebStatus('online', true); if (config.welcome.enabled) await sendWelcomeMessage(tempSock); }
-                if (connection === 'close') { isConnected = false; if (!isShuttingDown) setTimeout(async () => { await connectToWhatsApp(); }, 5000); }
+                if (connection === 'open') { 
+                    isConnected = true; 
+                    updateWebStatus('online', true); 
+                    await db.save('auth_creds', state.creds);
+                    if (config.welcome.enabled) await sendWelcomeMessage(tempSock); 
+                }
+                if (connection === 'close') { 
+                    isConnected = false; 
+                    if (!isShuttingDown) setTimeout(async () => { await connectToWhatsApp(); }, 5000); 
+                }
             });
-            tempSock.ev.on('creds.update', saveCreds);
+            
+            tempSock.ev.on('creds.update', async () => {
+                await saveCreds();
+                if (state.creds?.me) await db.save('auth_creds', state.creds);
+            });
+            
             pairingInProgress = false;
             return code;
         }
         pairingInProgress = false;
         return null;
-    } catch (e) { pairingInProgress = false; return null; }
+    } catch (e) { 
+        pairingInProgress = false; 
+        console.error('Pairing error:', e.message);
+        return null; 
+    }
+}
+
+// ===== RESTORE SESSION FROM DATABASE =====
+async function restoreSession() {
+    try {
+        const savedCreds = await db.get('auth_creds');
+        if (savedCreds) {
+            const authDir = path.join(__dirname, 'auth_info');
+            if (!fs.existsSync(authDir)) fs.mkdirSync(authDir, { recursive: true });
+            
+            fs.writeFileSync(path.join(authDir, 'creds.json'), JSON.stringify(savedCreds, null, 2));
+            console.log('✅ Session restored from database');
+            return true;
+        }
+    } catch (e) {
+        console.error('❌ Failed to restore session:', e.message);
+    }
+    return false;
 }
 
 // ===== CONNECT TO WHATSAPP =====
 async function connectToWhatsApp() {
     if (sock || isShuttingDown) return;
     try {
+        await restoreSession();
+        
         const { state, saveCreds } = await useMultiFileAuthState('auth_info');
         updateWebStatus('connecting', false);
         console.log('🔄 Connecting to WhatsApp...');
-        sock = makeWASocket({ auth: state, browser: [config.bot.name, 'Chrome', config.bot.version], markOnlineOnConnect: false, connectTimeoutMs: 60000, defaultQueryTimeoutMs: 60000, keepAliveIntervalMs: 60000, version: [2, 2403, 2], maxRetries: 5, retryDelayMs: 5000, generateHighQualityLinkPreview: false, syncFullHistory: false, shouldSyncHistoryMessage: () => false });
+        
+        sock = makeWASocket({ 
+            auth: state, 
+            browser: [config.bot.name, 'Chrome', config.bot.version], 
+            markOnlineOnConnect: false, 
+            connectTimeoutMs: 60000, 
+            defaultQueryTimeoutMs: 60000, 
+            keepAliveIntervalMs: 60000, 
+            version: [2, 2403, 2], 
+            maxRetries: 5, 
+            retryDelayMs: 5000, 
+            generateHighQualityLinkPreview: false, 
+            syncFullHistory: false, 
+            shouldSyncHistoryMessage: () => false 
+        });
         server.setSocket(sock);
 
         sock.ev.on('connection.update', async (update) => {
             const { connection, lastDisconnect, qr } = update;
-            if (qr) { updateWebQR(qr); qrcode.generate(qr, { small: true }); reconnectAttempts = 0; }
-            if (connection === 'open') { isConnected = true; botStartTime = Date.now(); reconnectAttempts = 0; updateWebStatus('online', true); console.log(`\n✅ ${config.bot.name} IS ONLINE!`); if (config.welcome.enabled) await sendWelcomeMessage(sock); }
-            if (connection === 'close') { isConnected = false; sock = null; server.setSocket(null); updateWebStatus('disconnected', false); const sc = lastDisconnect?.error?.output?.statusCode; if (sc !== DisconnectReason.loggedOut && !isShuttingDown) { const d = Math.min(30000, 5000 * (reconnectAttempts + 1)); reconnectAttempts++; console.log(`⏳ Reconnecting in ${d/1000}s...`); reconnectTimer = setTimeout(async () => { reconnectTimer = null; await connectToWhatsApp(); }, d); } }
+            if (qr) { 
+                updateWebQR(qr); 
+                qrcode.generate(qr, { small: true }); 
+                reconnectAttempts = 0; 
+            }
+            if (connection === 'open') { 
+                isConnected = true; 
+                botStartTime = Date.now(); 
+                reconnectAttempts = 0; 
+                updateWebStatus('online', true); 
+                console.log(`\n✅ ${config.bot.name} IS ONLINE!`); 
+                
+                // Save session to database
+                await db.save('auth_creds', state.creds);
+                await db.save('last_connected', Date.now());
+                
+                if (config.welcome.enabled) await sendWelcomeMessage(sock); 
+            }
+            if (connection === 'close') { 
+                isConnected = false; 
+                sock = null; 
+                server.setSocket(null); 
+                updateWebStatus('disconnected', false); 
+                const sc = lastDisconnect?.error?.output?.statusCode; 
+                if (sc !== DisconnectReason.loggedOut && !isShuttingDown) { 
+                    const d = Math.min(30000, 5000 * (reconnectAttempts + 1)); 
+                    reconnectAttempts++; 
+                    console.log(`⏳ Reconnecting in ${d/1000}s...`); 
+                    reconnectTimer = setTimeout(async () => { 
+                        reconnectTimer = null; 
+                        await connectToWhatsApp(); 
+                    }, d); 
+                }
+            }
         });
 
-        sock.ev.on('creds.update', saveCreds);
+        sock.ev.on('creds.update', async () => {
+            await saveCreds();
+            if (state.creds?.me) {
+                await db.save('auth_creds', state.creds);
+            }
+        });
 
         // ===== MESSAGE HANDLER =====
         sock.ev.on('messages.upsert', async (m) => {
@@ -203,7 +325,8 @@ async function connectToWhatsApp() {
                 // INFO
                 if (['info','.info','/info','!info'].includes(lowerText)) {
                     await react(remoteJid, msg.key, 'ℹ️');
-                    await sock.sendMessage(remoteJid, { text: `ℹ️ *B O T I N F O*\n\n───────────────────────\n🤖 Name : ${config.bot.name}\n📌 Version : ${config.bot.version}\n🟢 Status : Online\n⚡ Platform : Baileys\n📡 Panel : http://localhost:3000\n\n📊 *SYSTEM*\n🕐 Uptime : ${getUptime(botStartTime)}\n💾 Memory : ${(process.memoryUsage().heapUsed/1024/1024).toFixed(2)} MB\n🖥️ Platform : ${process.platform}\n⚙️ Node.js : ${process.version}\n\n📅 ${new Date().toLocaleDateString()} ⏰ ${new Date().toLocaleTimeString()}\n\n${footer}` });
+                    const dbStatus = config.database.enabled ? '✅ Enabled' : '❌ Disabled';
+                    await sock.sendMessage(remoteJid, { text: `ℹ️ *B O T I N F O*\n\n───────────────────────\n🤖 Name : ${config.bot.name}\n📌 Version : ${config.bot.version}\n🟢 Status : Online\n⚡ Platform : Baileys\n💾 Database : ${dbStatus}\n📡 Port : ${config.port}\n\n📊 *SYSTEM*\n🕐 Uptime : ${getUptime(botStartTime)}\n💾 Memory : ${(process.memoryUsage().heapUsed/1024/1024).toFixed(2)} MB\n🖥️ Platform : ${process.platform}\n⚙️ Node.js : ${process.version}\n\n📅 ${new Date().toLocaleDateString()} ⏰ ${new Date().toLocaleTimeString()}\n\n${footer}` });
                     continue;
                 }
 
@@ -226,7 +349,7 @@ async function connectToWhatsApp() {
                     await react(remoteJid, msg.key, '🚀');
                     const rt = Date.now() - (msg.messageTimestamp * 1000);
                     const stars = rt < 500 ? '🌟🌟🌟🌟🌟' : rt < 1000 ? '🌟🌟🌟🌟' : rt < 2000 ? '🌟🌟🌟' : '🌟🌟';
-                    await sock.sendMessage(remoteJid, { text: `🚀 *SPEED TEST*\n\n───────────────────────\n⏱️ Response : ${rt}ms\n⚡ Rating : ${stars}\n🟢 Status : Online\n📡 Server : http://localhost:3000\n🕐 Uptime : ${getUptime(botStartTime)}\n\n💫 Speed Demon!\n\n${footer}` });
+                    await sock.sendMessage(remoteJid, { text: `🚀 *SPEED TEST*\n\n───────────────────────\n⏱️ Response : ${rt}ms\n⚡ Rating : ${stars}\n🟢 Status : Online\n📡 Port : ${config.port}\n🕐 Uptime : ${getUptime(botStartTime)}\n\n💫 Speed Demon!\n\n${footer}` });
                     continue;
                 }
 
@@ -275,7 +398,7 @@ async function connectToWhatsApp() {
                 if (lowerText.startsWith('.calc ')||lowerText.startsWith('.math ')||lowerText.startsWith('/calc ')||lowerText.startsWith('/math ')) { const q = text.split(' ').slice(1).join(' ').trim(); if (q) handleCalc(sock, msg, q, botStartTime); else await sock.sendMessage(remoteJid, { text: `❌ Missing expression!\n\n📌 .calc 2+2*3\n\n${footer}` }); continue; }
                 if (lowerText.startsWith('.dns ')||lowerText.startsWith('.whois ')||lowerText.startsWith('/dns ')||lowerText.startsWith('/whois ')) { const q = text.split(' ').slice(1).join(' ').trim(); if (q) handleDNS(sock, msg, q, botStartTime); else await sock.sendMessage(remoteJid, { text: `❌ Missing domain!\n\n📌 .dns example.com\n\n${footer}` }); continue; }
 
-                // === AI COMMANDS (FREE ONLY) ===
+                // === AI COMMANDS ===
                 if (lowerText.startsWith('.ai ')||lowerText.startsWith('.gpt ')||lowerText.startsWith('/ai ')||lowerText.startsWith('/gpt ')) { const q = text.split(' ').slice(1).join(' ').trim(); if (q) handleAI(sock, msg, q, botStartTime); else await sock.sendMessage(remoteJid, { text: `❌ Missing query!\n\n📌 .ai <question>\n\n${footer}` }); continue; }
                 if (lowerText.startsWith('.imagine ')||lowerText.startsWith('.draw ')||lowerText.startsWith('.gen ')||lowerText.startsWith('/imagine ')||lowerText.startsWith('/draw ')||lowerText.startsWith('/gen ')) { const q = text.split(' ').slice(1).join(' ').trim(); if (q) handleImagine(sock, msg, q, botStartTime); else await sock.sendMessage(remoteJid, { text: `❌ Missing prompt!\n\n📌 .imagine <description>\n\n${footer}` }); continue; }
                 if (lowerText.startsWith('.code ')||lowerText.startsWith('.bb ')||lowerText.startsWith('/code ')||lowerText.startsWith('/bb ')) { const q = text.split(' ').slice(1).join(' ').trim(); if (q) handleBlackbox(sock, msg, q, botStartTime); else await sock.sendMessage(remoteJid, { text: `❌ Missing query!\n\n📌 .code <question>\n\n${footer}` }); continue; }
@@ -290,14 +413,60 @@ async function connectToWhatsApp() {
     } catch (error) {
         console.error('❌ Connection error:', error.message);
         sock = null; server.setSocket(null);
-        if (!isShuttingDown) { await new Promise(r => setTimeout(r, 10000)); await connectToWhatsApp(); }
+        if (!isShuttingDown) { 
+            await new Promise(r => setTimeout(r, 10000)); 
+            await connectToWhatsApp(); 
+        }
     }
 }
 
+// ===== STARTUP =====
+async function startBot() {
+    console.log(`\n╔═══════════════════════════════════╗`);
+    console.log(`║     👑 ${config.bot.name} BOT 👑            ║`);
+    console.log(`║   The Queen of WhatsApp Bots      ║`);
+    console.log(`║   🌐 Port: ${config.port}                  ║`);
+    console.log(`║   💾 Database: ${config.database.enabled ? config.database.type : 'Local'}           ║`);
+    console.log(`║   📱 Bot starting...              ║`);
+    console.log(`╚═══════════════════════════════════╝\n`);
+    
+    // Initialize database
+    await db.connect();
+    
+    // Start WhatsApp connection
+    setTimeout(async () => { 
+        const phone = server.getPendingPhone(); 
+        if (phone) await generatePairingCode(phone); 
+    }, 3000);
+    
+    connectToWhatsApp();
+}
+
+// ===== API ROUTES =====
+server.app.post('/api/request-pairing', async (req, res) => { 
+    const { phone } = req.body; 
+    if (!phone || phone.length < 10) return res.json({ success: false, error: 'Valid phone number required' }); 
+    const code = await generatePairingCode(phone); 
+    if (code) return res.json({ success: true, code }); 
+    else return res.json({ success: false, error: 'Failed', pending: true }); 
+});
+
+// ===== GRACEFUL SHUTDOWN =====
+process.on('SIGINT', async () => { 
+    console.log('\n🛑 Shutting down...');
+    isShuttingDown = true; 
+    if (reconnectTimer) clearTimeout(reconnectTimer); 
+    await db.disconnect();
+    process.exit(0); 
+});
+
+process.on('SIGTERM', async () => { 
+    console.log('\n🛑 Shutting down...');
+    isShuttingDown = true; 
+    if (reconnectTimer) clearTimeout(reconnectTimer); 
+    await db.disconnect();
+    process.exit(0); 
+});
+
 // ===== START =====
-console.log(`\n╔═══════════════════════════════════╗\n║     👑 ${config.bot.name} BOT 👑            ║\n║   The Queen of WhatsApp Bots      ║\n║   🌐 Web: http://localhost:3000   ║\n║   📱 Bot starting...              ║\n╚═══════════════════════════════════╝\n`);
-setTimeout(async () => { const phone = server.getPendingPhone(); if (phone) await generatePairingCode(phone); }, 3000);
-connectToWhatsApp();
-server.app.post('/api/request-pairing', async (req, res) => { const { phone } = req.body; if (!phone || phone.length < 10) return res.json({ success: false, error: 'Valid phone number required' }); const code = await generatePairingCode(phone); if (code) return res.json({ success: true, code }); else return res.json({ success: false, error: 'Failed', pending: true }); });
-process.on('SIGINT', () => { isShuttingDown = true; if (reconnectTimer) clearTimeout(reconnectTimer); process.exit(0); });
-process.on('SIGTERM', () => { isShuttingDown = true; if (reconnectTimer) clearTimeout(reconnectTimer); process.exit(0); });
+startBot();
